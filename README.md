@@ -1,14 +1,7 @@
-# My Gee AI Companion
+# My GEE MVP
 
-Next.js MVP for My Gee.
+A Next.js MVP for AI companionship and real human connections.
 
-## Run locally
+## Deployment
 
-```bash
-npm install
-npm run dev
-```
-
-## Deploy
-
-This project is configured for Vercel. Pushes to `main` trigger a new deployment when the Vercel project is connected to this repository.
+Configured for Vercel production deployment.
