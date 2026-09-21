@@ -1,1 +1,0 @@
-Deployment cleanup completed: malformed path artifacts and uploaded zip archives were removed from the production source tree. The app source remains in the standard Next.js app/ and lib/ structure.
