@@ -1,0 +1,1 @@
+My GEE MVP deployment source. Standard Next.js project structure.
