@@ -13,10 +13,10 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "plugins": [{ "name": "next" }],
     "baseUrl": ".",
-    "paths": { "@/*": ["./*"] },
-    "plugins": [{ "name": "next" }]
+    "paths": { "@/*": ["./*"] }
   },
   "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "package.json*", "app\\*", "1ib\\*", "*.zip"]
+  "exclude": ["node_modules"]
 }
