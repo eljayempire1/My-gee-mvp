@@ -1,30 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Nav from "../components/Nav";
+import { supabase } from "../../lib/supabase";
 
-const starter = [
-  { name: "Sarah", preview: "Hey! How's your day going?", unread: 2 },
-  { name: "Emma", preview: "That sounds amazing 💜", unread: 0 },
-  { name: "David", preview: "Let's connect! 🙌", unread: 0 },
-];
+type Connection={id:string;other_user_id:string;display_name:string|null;city:string|null;avatar_letter:string|null};
+type Message={id:string;connection_id:string;sender_id:string;body:string;created_at:string};
 
-export default function Messages() {
-  const [active, setActive] = useState(0);
-  const [text, setText] = useState("");
-  const [sent, setSent] = useState<string[]>([]);
-  const person = starter[active];
-  return <><Nav /><main style={{ minHeight: "100vh", padding: "28px 18px", fontFamily: "Arial, sans-serif" }}>
-    <div style={{ maxWidth: 950, margin: "0 auto" }}>
-      <div style={{ color: "#e879f9", fontWeight: 800, letterSpacing: 2 }}>MESSAGES</div><h1 style={{ fontSize: 46, margin: "12px 0 24px" }}>Stay connected.</h1>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(210px, .8fr) minmax(280px, 1.5fr)", gap: 16 }}>
-        <div style={{ border: "1px solid #2c2c33", borderRadius: 20, overflow: "hidden" }}>{starter.map((p, i) => <button key={p.name} onClick={() => setActive(i)} style={{ display: "block", width: "100%", textAlign: "left", padding: 16, border: 0, borderBottom: "1px solid #25252b", background: i === active ? "#21152a" : "#111114", color: "white", cursor: "pointer" }}><b>{p.name}</b><div style={{ color: "#a1a1aa", fontSize: 13, marginTop: 5 }}>{p.preview}</div></button>)}</div>
-        <div style={{ minHeight: 520, background: "#111114", border: "1px solid #2c2c33", borderRadius: 20, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: 16, borderBottom: "1px solid #2c2c33" }}><b>{person.name}</b><div style={{ color: "#22c55e", fontSize: 12, marginTop: 4 }}>● Connected</div></div>
-          <div style={{ flex: 1, padding: 18 }}><div style={{ background: "#1b1b21", padding: 13, borderRadius: 16, maxWidth: "75%", color: "#ddd" }}>{person.preview}</div>{sent.map((s, i) => <div key={i} style={{ margin: "12px 0 0 auto", background: "#7c3aed", padding: 13, borderRadius: 16, maxWidth: "75%" }}>{s}</div>)}</div>
-          <form onSubmit={e => { e.preventDefault(); if (!text.trim()) return; setSent([...sent, text.trim()]); setText(""); }} style={{ display: "flex", gap: 8, padding: 14, borderTop: "1px solid #2c2c33" }}><input value={text} onChange={e => setText(e.target.value)} placeholder="Write a message..." style={{ flex: 1, background: "#0b0b0e", color: "white", border: "1px solid #34343c", borderRadius: 12, padding: 13 }} /><button style={{ background: "#9333ea", color: "white", border: 0, borderRadius: 12, padding: "0 18px", fontWeight: 800 }}>Send</button></form>
-        </div>
-      </div>
-    </div>
-  </main></>;
-}
+export default function Messages(){
+ const [userId,setUserId]=useState(""); const [connections,setConnections]=useState<Connection[]>([]); const [active,setActive]=useState(0);
+ const [messages,setMessages]=useState<Message[]>([]); const [text,setText]=useState(""); const [loading,setLoading]=useState(true); const [notice,setNotice]=useState("");
+ const person=connections[active];
+ const visible=useMemo(()=>messages.filter(m=>m.connection_id===person?.id),[messages,person]);
+ useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!mounted)return;if(!user){setNotice("Please sign in to use messages.");setLoading(false);return}setUserId(user.id);const {data,error}=await supabase.rpc("accepted_connections");if(error){setNotice("Could not load connections yet. Make sure the Supabase schema has been run.");setLoading(false);return}setConnections((data||[]) as Connection[]);setLoading(false)})();return()=>{mounted=false}},[]);
+ useEffect(()=>{if(!person)return;let mounted=true;(async()=>{const {data}=await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id",person.id).order("created_at",{ascending:true});if(mounted)setMessages((data||[]) as Message[])})();const channel=supabase.channel(`gee-chat-${person.id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"connection_messages",filter:`connection_id=eq.${person.id}`},payload=>{const m=payload.new as Message;setMessages(prev=>prev.some(x=>x.id===m.id)?prev:[...prev,m])}).subscribe();return()=>{mounted=false;supabase.removeChannel(channel)}},[person?.id]);
+ async function send(e:React.FormEvent){e.preventDefault();const body=text.trim();if(!body||!person||!userId)return;setText("");const {error}=await supabase.from("connection_messages").insert({connection_id:person.id,sender_id:userId,body});if(error){setText(body);setNotice("Message could not be sent.");setTimeout(()=>setNotice(""),2200)}}
+ return <><Nav/><main style={{minHeight:"100vh",padding:"28px 18px",fontFamily:"Arial,sans-serif"}}><div style={{maxWidth:950,margin:"0 auto"}}><div style={{color:"#e879f9",fontWeight:800,letterSpacing:2}}>MESSAGES</div><h1 style={{fontSize:46,margin:"12px 0 24px"}}>Stay connected. 💜</h1>{loading?<p style={{color:"#a1a1aa"}}>Loading your connections…</p>:!userId?<div style={card}>Sign in to start private conversations.</div>:connections.length===0?<div style={card}>No accepted connections yet. Go to <a href="/discover" style={{color:"#e9a8ff"}}>Discover</a> and connect with someone.</div>:<div style={{display:"grid",gridTemplateColumns:"minmax(210px,.8fr) minmax(280px,1.5fr)",gap:16}}><div style={list}>{connections.map((p,i)=><button key={p.id} onClick={()=>setActive(i)} style={{display:"block",width:"100%",textAlign:"left",padding:16,border:0,borderBottom:"1px solid #25252b",background:i===active?"#21152a":"#111114",color:"white",cursor:"pointer"}}><b>{p.display_name||"GEE member"}</b><div style={{color:"#22c55e",fontSize:12,marginTop:5}}>● Connected</div></button>)}</div><div style={{minHeight:520,background:"#111114",border:"1px solid #2c2c33",borderRadius:20,display:"flex",flexDirection:"column",overflow:"hidden"}}><div style={{padding:16,borderBottom:"1px solid #2c2c33"}}><b>{person.display_name||"GEE member"}</b><div style={{color:"#22c55e",fontSize:12,marginTop:4}}>● Private connection</div></div><div style={{flex:1,padding:18,overflowY:"auto"}}>{visible.length===0&&<div style={{color:"#71717a",textAlign:"center",marginTop:80}}>Start the conversation 👋</div>}{visible.map(m=><div key={m.id} style={{margin:"10px 0",display:"flex",justifyContent:m.sender_id===userId?"flex-end":"flex-start"}}><div style={{background:m.sender_id===userId?"#7c3aed":"#1b1b21",padding:"11px 14px",borderRadius:16,maxWidth:"75%",color:"#eee"}}>{m.body}</div></div>)}</div>{notice&&<div style={{padding:"8px 14px",color:"#f0abfc"}}>{notice}</div>}<form onSubmit={send} style={{display:"flex",gap:8,padding:14,borderTop:"1px solid #2c2c33"}}><button type="button" title="Emoji" onClick={()=>setText(t=>t+" 💜")} style={icon}>😊</button><input value={text} onChange={e=>setText(e.target.value)} placeholder="Write a message..." style={{flex:1,background:"#0b0b0e",color:"white",border:"1px solid #34343c",borderRadius:12,padding:13}}/><button style={{background:"#9333ea",color:"white",border:0,borderRadius:12,padding:"0 18px",fontWeight:800}}>Send</button></form></div></div>}</div></main></>}
+const card={padding:22,background:"#121216",border:"1px solid #2c2c33",borderRadius:18,color:"#d4d4d8"};const list={border:"1px solid #2c2c33",borderRadius:20,overflow:"hidden"};const icon={background:"#21152a",border:"1px solid #4b3b55",borderRadius:12,padding:"0 12px",color:"white"};
