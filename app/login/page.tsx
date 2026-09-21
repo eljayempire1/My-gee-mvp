@@ -1,74 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import Nav from "../components/Nav";
+import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
-    window.location.href = "/";
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setLoading(true); setMessage("");
+    try {
+      const result = mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+      if (result.error) throw result.error;
+      if (mode === "signin") router.push("/profile");
+      else setMessage("Account created. Check your email if confirmation is enabled. 💜");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again."); }
+    finally { setLoading(false); }
   }
 
-  return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-2">Welcome to My Gee</h1>
-        <p className="mb-6 text-gray-500">
-          Your AI companion is waiting for you.
-        </p>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded-lg border p-3"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded-lg border p-3"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-black p-3 text-white"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        {message && (
-          <p className="mt-4 text-red-500">{message}</p>
-        )}
-      </div>
-    </main>
-  );
+  return <><Nav /><main style={{minHeight:"calc(100vh - 55px)",display:"grid",placeItems:"center",padding:24,fontFamily:"Arial,sans-serif"}}>
+    <div style={{width:"100%",maxWidth:430,padding:28,border:"1px solid #303038",borderRadius:24,background:"#121216"}}>
+      <div style={{color:"#e879f9",fontWeight:900,letterSpacing:2}}>MY GEE</div>
+      <h1 style={{margin:"12px 0 8px"}}>{mode === "signin" ? "Welcome back" : "Join My Gee"}</h1>
+      <p style={{color:"#a1a1aa",lineHeight:1.5}}>Talk to your Gee and build genuine connections.</p>
+      <form onSubmit={submit}>
+        <input value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="Email" required autoComplete="email" style={input}/>
+        <input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Password" required autoComplete={mode === "signin" ? "current-password" : "new-password"} style={input}/>
+        <button disabled={loading} style={button}>{loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}</button>
+      </form>
+      {message && <div style={{marginTop:14,padding:12,borderRadius:12,background:"#1b1520",color:"#e9d5ff"}}>{message}</div>}
+      <button type="button" onClick={()=>{setMode(mode === "signin" ? "signup" : "signin");setMessage("")}} style={switcher}>{mode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}</button>
+    </div>
+  </main></>;
 }
+
+const input: React.CSSProperties = {width:"100%",boxSizing:"border-box",marginTop:12,padding:14,borderRadius:12,border:"1px solid #3b3b43",background:"#0d0d0f",color:"white",fontSize:16};
+const button: React.CSSProperties = {width:"100%",marginTop:16,padding:14,border:0,borderRadius:12,background:"linear-gradient(90deg,#7c3aed,#c026d3)",color:"white",fontWeight:800,fontSize:16};
+const switcher: React.CSSProperties = {width:"100%",marginTop:16,padding:10,border:0,background:"transparent",color:"#d8b4fe",fontWeight:700};
