@@ -1,25 +1,19 @@
 import Link from "next/link";
+import Nav from "./components/Nav";
 
 export default function Home() {
-  return (
-    <main style={{ minHeight: "100vh", padding: "60px 24px", fontFamily: "Arial, sans-serif" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-        <div style={{ color: "#c084fc", fontWeight: 800, letterSpacing: 2 }}>MY GEE</div>
-        <h1 style={{ fontSize: "clamp(44px, 8vw, 76px)", lineHeight: 1, margin: "20px 0" }}>
-          You don&apos;t have to face today alone.
-        </h1>
-        <p style={{ color: "#a1a1aa", fontSize: 19, lineHeight: 1.6, maxWidth: 650, margin: "0 auto 30px" }}>
-          My Gee gives you an AI companion to talk to and a safe space to discover real people with shared interests.
-        </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
-          <Link href="/chat" style={{ background: "#9333ea", color: "white", padding: "14px 22px", borderRadius: 12, textDecoration: "none", fontWeight: 700 }}>
-            Talk to My Gee
-          </Link>
-          <Link href="/discover" style={{ background: "#18181b", color: "white", padding: "14px 22px", borderRadius: 12, textDecoration: "none", border: "1px solid #303038" }}>
-            Meet people
-          </Link>
-        </div>
+  return <><Nav /><main style={{ minHeight: "calc(100vh - 55px)", padding: "60px 18px", fontFamily: "Arial, sans-serif", background: "radial-gradient(circle at 50% 0%,#24102f 0%,#09090b 48%)" }}>
+    <div style={{ maxWidth: 1050, margin: "0 auto", textAlign: "center" }}>
+      <div style={{ color: "#e879f9", fontWeight: 900, letterSpacing: 3 }}>MY GEE</div>
+      <h1 style={{ fontSize: "clamp(48px, 9vw, 86px)", lineHeight: .98, margin: "22px auto", maxWidth: 900 }}>You don&apos;t have to face today alone.</h1>
+      <p style={{ color: "#a1a1aa", fontSize: 20, lineHeight: 1.65, maxWidth: 700, margin: "0 auto 30px" }}>An AI companion to talk to, plus a safer way to discover real people with shared interests and build genuine connections.</p>
+      <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}><Link href="/chat" style={button}>Talk to My Gee →</Link><Link href="/discover" style={secondary}>Meet people</Link></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginTop: 65, textAlign: "left" }}>
+        {[['🤖','24/7 AI companion','Talk, reflect, plan and laugh with your Gee.'],['👥','Real connections','Discover people around shared interests.'],['🛡️','Safety first','Privacy controls, blocking and reporting are built in.'],['💜','A kinder world','A space designed around conversation and belonging.']].map(([icon,title,body]) => <div key={title} style={{ padding: 20, border: "1px solid #2c2630", borderRadius: 20, background: "rgba(18,18,22,.8)" }}><div style={{ fontSize: 25 }}>{icon}</div><h3>{title}</h3><p style={{ color: "#a1a1aa", lineHeight: 1.5 }}>{body}</p></div>)}
       </div>
-    </main>
-  );
+    </div>
+  </main></>;
 }
+
+const button: React.CSSProperties = { background: "linear-gradient(90deg,#7c3aed,#c026d3)", color: "white", padding: "15px 24px", borderRadius: 13, textDecoration: "none", fontWeight: 800 };
+const secondary: React.CSSProperties = { background: "#121216", color: "white", padding: "15px 24px", borderRadius: 13, textDecoration: "none", border: "1px solid #44404a", fontWeight: 700 };
