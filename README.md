@@ -1,7 +1,14 @@
-# My Gee MVP
+# My Gee AI Companion
 
-My Gee is a social AI companion app concept with supportive AI personalities and chat.
+Next.js MVP for My Gee.
 
-## Status
+## Run locally
 
-Repository connected to ChatGPT Codex Connector.
+```bash
+npm install
+npm run dev
+```
+
+## Deploy
+
+This project is configured for Vercel. Pushes to `main` trigger a new deployment when the Vercel project is connected to this repository.
