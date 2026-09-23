@@ -18,10 +18,16 @@ export default function LoginPage() {
     try {
       const result = mode === "signin"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/login`,
+            },
+          });
       if (result.error) throw result.error;
       if (mode === "signin") router.push("/profile");
-      else setMessage("Account created. Check your email if confirmation is enabled. 💜");
+      else setMessage("Account created. Check your email to confirm your address. 💜");
     } catch (err) { setMessage(err instanceof Error ? err.message : "Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
