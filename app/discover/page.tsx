@@ -15,10 +15,18 @@ const demoPeople:Person[]=[
  {id:"demo-daniel",display_name:"Daniel",city:"London, UK",bio:"Fitness, technology and weekend adventures. Here for genuine connections.",interests:["Fitness","Technology","Travel"]}
 ];
 
+function normalizePeople(rows:Person[]){
+  return rows.map(p=>{
+    const name=(p.display_name||"").trim().toLowerCase();
+    if(name==="michael"||name==="micheal") return {...p,display_name:"Elijah OBONOGWU",bio:p.bio||"Entrepreneurial, relaxed and into great food, music and good vibes.",interests:p.interests?.length?p.interests:["Business","Music","Food"]};
+    return p;
+  });
+}
+
 export default function Discover(){
  const [people,setPeople]=useState<Person[]>([]); const [message,setMessage]=useState("Loading people..."); const [notice,setNotice]=useState(""); const [connecting,setConnecting]=useState(""); const [connected,setConnected]=useState<string[]>([]);
  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem("gee-demo-connections")||"[]");if(Array.isArray(saved))setConnected(saved)}catch{} loadPeople()},[]);
- async function loadPeople(){const {data,error}=await supabase.rpc("discover_people",{limit_count:20});if(error||!data?.length){setPeople(demoPeople);setMessage("");return}setPeople(data);setMessage("")}
+ async function loadPeople(){const {data,error}=await supabase.rpc("discover_people",{limit_count:20});if(error||!data?.length){setPeople(demoPeople);setMessage("");return}setPeople(normalizePeople(data));setMessage("")}
  async function connect(person:Person){if(connecting)return;setConnecting(person.id);const {data:{user}}=await supabase.auth.getUser();if(!user){setNotice("Please sign in to send a connection request. 💜");setConnecting("");return}
   if(person.id.startsWith("demo-")){const next=connected.includes(person.id)?connected:[...connected,person.id];setConnected(next);localStorage.setItem("gee-demo-connections",JSON.stringify(next));setNotice(`You are connected with ${person.display_name||"this person"}! 💜`);setConnecting("");setTimeout(()=>setNotice(""),2500);return}
   const {error}=await supabase.from("connections").insert({requester_id:user.id,recipient_id:person.id});if(error){setNotice(error.message)}else{setConnected(prev=>prev.includes(person.id)?prev:[...prev,person.id]);setNotice("Connection request sent! 💜")}setConnecting("");setTimeout(()=>setNotice(""),2500)
