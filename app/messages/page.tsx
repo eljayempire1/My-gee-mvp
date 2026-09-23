@@ -12,7 +12,7 @@ const demoPeople:Connection[]=[
 {id:"demo-sophia",other_user_id:"demo-sophia",display_name:"Sophia",city:"London, UK",avatar_letter:"S"},
 {id:"demo-david",other_user_id:"demo-david",display_name:"David",city:"London, UK",avatar_letter:"D"},
 {id:"demo-james",other_user_id:"demo-james",display_name:"James",city:"London, UK",avatar_letter:"J"},
-{id:"demo-michael",other_user_id:"demo-michael",display_name:"Michael",city:"London, UK",avatar_letter:"M"},
+{id:"demo-elijah",other_user_id:"demo-elijah",display_name:"Elijah",city:"London, UK",avatar_letter:"E"},
 {id:"demo-daniel",other_user_id:"demo-daniel",display_name:"Daniel",city:"London, UK",avatar_letter:"D"}
 ];
 
