@@ -5,6 +5,8 @@ import { supabase } from "../../lib/supabase";
 
 type Connection={id:string;other_user_id:string;display_name:string|null;city:string|null;avatar_letter:string|null};
 type Message={id:string;connection_id:string;sender_id:string;body:string;created_at:string};
+
+// MVP demo connections: 4 women + 4 men.
 const demoPeople:Connection[]=[
 {id:"demo-emma",other_user_id:"demo-emma",display_name:"Emma",city:"London, UK",avatar_letter:"E"},
 {id:"demo-sarah",other_user_id:"demo-sarah",display_name:"Sarah",city:"London, UK",avatar_letter:"S"},
@@ -18,23 +20,86 @@ const demoPeople:Connection[]=[
 
 function demoReply(name:string,body:string){
  const b=body.toLowerCase();
- if(b.includes("hello")||b.includes("hi")||b.includes("hey")) return `Hey! 💜 Nice to hear from you. How's your day going?`;
- if(b.includes("how are you")) return `I'm doing good 😊 Thanks for asking. What are you up to today?`;
- if(b.includes("london")) return `London has so many good vibes! 😄 What part are you in?`;
- if(b.includes("music")) return `I love music 🎶 What have you been listening to lately?`;
- if(b.includes("food")) return `Now you're talking! 😄 What's your favourite food spot?`;
- if(b.includes("travel")) return `Travel sounds amazing ✈️ Where would you love to go next?`;
- if(b.includes("good morning")) return `Good morning ☀️ I hope you're having a really good day!`;
- if(b.includes("good night")) return `Good night 💜 Sleep well and take care.`;
- return `That sounds interesting 😊 Tell me more. I'm listening.`;
+ if(b.includes("hello")||b.includes("hi")||b.includes("hey")) return `Hey ${name}! 💜 Really nice to hear from you. How's your day treating you?`;
+ if(b.includes("lonely")||b.includes("alone")) return `I'm glad you told me. 💜 You don't have to keep it all to yourself. Want to tell me what's been on your mind?`;
+ if(b.includes("how are you")) return `I'm good 😊 Thanks for asking! I'm here with you. What are you getting up to today?`;
+ if(b.includes("london")) return `London has so many good vibes! 😄 What part are you in? Maybe we can find something fun to talk about.`;
+ if(b.includes("music")) return `Now we're talking 🎶 What have you been listening to lately? Give me one song and I'll give you one back!`;
+ if(b.includes("food")) return `Okay, food is always a good conversation 😄 What's your ultimate comfort meal?`;
+ if(b.includes("travel")) return `Travel sounds amazing ✈️ If you could jump on a plane tonight, where would you go?`;
+ if(b.includes("good morning")) return `Good morning ☀️💜 I hope today is kind to you. What's one thing you're looking forward to?`;
+ if(b.includes("good night")) return `Good night 💜 Sleep well. I'm glad we got to talk — come back whenever you feel like chatting.`;
+ return `I hear you 💜 Tell me a little more. I'm genuinely listening — no judgement, just good vibes 😊`;
 }
 
 export default function Messages(){
- const [userId,setUserId]=useState(""); const [connections,setConnections]=useState<Connection[]>([]); const [active,setActive]=useState(0); const [messages,setMessages]=useState<Message[]>([]); const [text,setText]=useState(""); const [loading,setLoading]=useState(true); const [notice,setNotice]=useState(""); const [recording,setRecording]=useState(false); const [typing,setTyping]=useState(false);
- const person=connections[active]; const visible=useMemo(()=>messages.filter(m=>m.connection_id===person?.id),[messages,person]);
- useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!mounted)return;if(!user){setNotice("Please sign in to use messages.");setLoading(false);return}setUserId(user.id);const {data}=await supabase.rpc("accepted_connections");let list=((data||[]) as Connection[]);try{const saved=JSON.parse(localStorage.getItem("gee-demo-connections")||"[]");if(Array.isArray(saved)&&saved.length){const demos=demoPeople.filter(p=>saved.includes(p.id));list=[...list,...demos.filter(d=>!list.some(x=>x.id===d.id))]}}catch{}setConnections(list);setLoading(false)})();return()=>{mounted=false}},[]);
- useEffect(()=>{if(!person)return;let mounted=true;if(person.id.startsWith("demo-")){try{const saved=JSON.parse(localStorage.getItem(`gee-demo-messages-${person.id}`)||"[]");if(mounted)setMessages(saved)}catch{if(mounted)setMessages([])}return()=>{mounted=false}}(async()=>{const {data}=await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id",person.id).order("created_at",{ascending:true});if(mounted)setMessages((data||[]) as Message[])})();const channel=supabase.channel(`gee-chat-${person.id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"connection_messages",filter:`connection_id=eq.${person.id}`},payload=>{const m=payload.new as Message;setMessages(prev=>prev.some(x=>x.id===m.id)?prev:[...prev,m])}).subscribe();return()=>{mounted=false;supabase.removeChannel(channel)}},[person?.id]);
- async function send(e:React.FormEvent){e.preventDefault();const body=text.trim();if(!body||!person||!userId)return;setText("");setTyping(false);if(person.id.startsWith("demo-")){const m:Message={id:`demo-msg-${Date.now()}`,connection_id:person.id,sender_id:userId,body,created_at:new Date().toISOString()};const next=[...messages,m];setMessages(next);localStorage.setItem(`gee-demo-messages-${person.id}`,JSON.stringify(next));setTimeout(()=>{const reply:Message={id:`demo-reply-${Date.now()}`,connection_id:person.id,sender_id:person.id,body:demoReply(person.display_name||"Gee",body),created_at:new Date().toISOString()};setMessages(prev=>{const updated=[...prev,reply];localStorage.setItem(`gee-demo-messages-${person.id}`,JSON.stringify(updated));return updated})},1200);return}const {error}=await supabase.from("connection_messages").insert({connection_id:person.id,sender_id:userId,body});if(error){setText(body);setNotice("Message could not be sent.");setTimeout(()=>setNotice(""),2200)}}
- function voiceMessage(){setRecording(v=>!v);if(!recording)setNotice("🎤 Voice message mode is ready — tap again to stop.");else{setNotice("Voice message recording stopped.");setTimeout(()=>setNotice(""),1800)}}
- return <><Nav/><main style={{minHeight:"100vh",padding:"28px 18px",fontFamily:"Arial,sans-serif",background:"radial-gradient(circle at top,#21132c 0,#0b0b0f 48%)"}}><div style={{maxWidth:980,margin:"0 auto"}}><div style={{color:"#e879f9",fontWeight:800,letterSpacing:2}}>MESSAGES</div><h1 style={{fontSize:46,margin:"12px 0 24px"}}>Stay connected. 💜</h1>{loading?<p style={{color:"#a1a1aa"}}>Loading your connections…</p>:!userId?<div style={card}>Sign in to start private conversations.</div>:connections.length===0?<div style={card}>No connections yet. Go to <a href="/discover" style={{color:"#e9a8ff"}}>Discover</a> and connect with someone.</div>:<div style={{display:"grid",gridTemplateColumns:"minmax(210px,.8fr) minmax(280px,1.5fr)",gap:16}}><div style={list}>{connections.map((p,i)=><button key={p.id} onClick={()=>setActive(i)} style={{display:"block",width:"100%",textAlign:"left",padding:16,border:0,borderBottom:"1px solid #25252b",background:i===active?"#21152a":"#111114",color:"white",cursor:"pointer"}}><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={avatar}>{(p.avatar_letter||p.display_name||"G").slice(0,1).toUpperCase()}</div><div><b>{p.display_name||"GEE member"}</b><div style={{color:"#22c55e",fontSize:12,marginTop:5}}>● Online</div></div></div></button>)}</div><div style={{minHeight:560,background:"#111114cc",border:"1px solid #3a3041",borderRadius:24,display:"flex",flexDirection:"column",overflow:"hidden",boxShadow:"0 24px 80px #0007"}}><div style={{padding:16,borderBottom:"1px solid #2c2c33",display:"flex",alignItems:"center",justifyContent:"space-between"}}><div style={{display:"flex",gap:11,alignItems:"center"}}><div style={avatar}>{(person.avatar_letter||person.display_name||"G").slice(0,1).toUpperCase()}</div><div><b>{person.display_name||"GEE member"}</b><div style={{color:"#22c55e",fontSize:12,marginTop:4}}>● Online</div></div></div><div style={{display:"flex",gap:7}}><button title="Voice call" style={topBtn} onClick={()=>setNotice("📞 Voice call is ready for the next voice-session upgrade.")}>📞</button><button title="Video call" style={topBtn} onClick={()=>setNotice("🎥 Video calling is coming next.")}>🎥</button></div></div><div style={{flex:1,padding:18,overflowY:"auto"}}>{visible.length===0&&<div style={{color:"#71717a",textAlign:"center",marginTop:80}}>Start the conversation 👋</div>}{visible.map(m=><div key={m.id} style={{margin:"10px 0",display:"flex",justifyContent:m.sender_id===userId?"flex-end":"flex-start"}}><div style={{background:m.sender_id===userId?"linear-gradient(135deg,#7c3aed,#a855f7)":"#1b1b21",padding:"11px 14px",borderRadius:18,maxWidth:"75%",color:"#eee",boxShadow:"0 5px 20px #0004"}}>{m.body}</div></div>)}{typing&&<div style={{color:"#a1a1aa",fontSize:13}}>typing…</div>}</div>{notice&&<div style={{padding:"8px 14px",color:"#f0abfc",fontSize:13}}>{notice}</div>}<form onSubmit={send} style={{display:"flex",gap:8,padding:14,borderTop:"1px solid #2c2c33",background:"#0d0d11"}}><button type="button" title="Emoji" onClick={()=>setText(t=>t+" 💜")} style={icon}>😊</button><button type="button" title="Voice message" onClick={voiceMessage} style={{...icon,background:recording?"#7f1d1d":"#21152a"}}>{recording?"⏹️":"🎤"}</button><input value={text} onChange={e=>{setText(e.target.value);setTyping(e.target.value.length>0)}} placeholder="Write a message..." style={{flex:1,background:"#0b0b0e",color:"white",border:"1px solid #34343c",borderRadius:14,padding:13,outline:"none"}}/><button style={{background:"linear-gradient(135deg,#7c3aed,#ec4899)",color:"white",border:0,borderRadius:14,padding:"0 20px",fontWeight:800}}>Send</button></form></div></div>}</div></main></>}
-const card={padding:22,background:"#121216",border:"1px solid #2c2c33",borderRadius:18,color:"#d4d4d8"};const list={border:"1px solid #2c2c33",borderRadius:20,overflow:"hidden"};const avatar={width:40,height:40,borderRadius:"50%",display:"grid",placeItems:"center",background:"linear-gradient(135deg,#7c3aed,#ec4899)",fontWeight:900};const icon={background:"#21152a",border:"1px solid #4b3b55",borderRadius:12,padding:"0 12px",color:"white",fontSize:18};const topBtn={background:"#21152a",border:"1px solid #4b3b55",borderRadius:12,padding:"8px 10px",color:"white",cursor:"pointer"};
+ const [userId,setUserId]=useState("");
+ const [connections,setConnections]=useState<Connection[]>([]);
+ const [active,setActive]=useState(0);
+ const [messages,setMessages]=useState<Message[]>([]);
+ const [text,setText]=useState("");
+ const [loading,setLoading]=useState(true);
+ const [notice,setNotice]=useState("");
+ const [recording,setRecording]=useState(false);
+ const [typing,setTyping]=useState(false);
+ const [search,setSearch]=useState("");
+ const person=connections[active];
+ const visible=useMemo(()=>messages.filter(m=>m.connection_id===person?.id),[messages,person]);
+ const filtered=useMemo(()=>connections.filter(p=>(p.display_name||"").toLowerCase().includes(search.toLowerCase())),[connections,search]);
+
+ useEffect(()=>{let mounted=true;(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!mounted)return;if(!user){setNotice("Please sign in to use messages.");setLoading(false);return}setUserId(user.id);const {data}=await supabase.rpc("accepted_connections");let list=((data||[]) as Connection[]);try{const saved=JSON.parse(localStorage.getItem("gee-demo-connections")||"[]");if(Array.isArray(saved)&&saved.length){const demos=demoPeople.filter(p=>saved.includes(p.id));list=[...list,...demos.filter(d=>!list.some(x=>x.id===d.id))]}}catch{}
+ // For the MVP, show the connected demo friends even before a real user-to-user connection exists.
+ if(!list.length) list=demoPeople;
+ setConnections(list);setLoading(false)})();return()=>{mounted=false}},[]);
+
+ useEffect(()=>{if(!person)return;let mounted=true;
+  if(person.id.startsWith("demo-")){try{const saved=JSON.parse(localStorage.getItem(`gee-demo-messages-${person.id}`)||"[]");if(mounted)setMessages(saved)}catch{if(mounted)setMessages([])}return()=>{mounted=false}}
+  (async()=>{const {data}=await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id",person.id).order("created_at",{ascending:true});if(mounted)setMessages((data||[]) as Message[])})();
+  const channel=supabase.channel(`gee-chat-${person.id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"connection_messages",filter:`connection_id=eq.${person.id}`},payload=>{const m=payload.new as Message;setMessages(prev=>prev.some(x=>x.id===m.id)?prev:[...prev,m])}).subscribe();
+  return()=>{mounted=false;supabase.removeChannel(channel)}
+ },[person?.id]);
+
+ async function send(e:React.FormEvent){e.preventDefault();const body=text.trim();if(!body||!person||!userId)return;setText("");setTyping(false);
+  if(person.id.startsWith("demo-")){const m:Message={id:`demo-msg-${Date.now()}`,connection_id:person.id,sender_id:userId,body,created_at:new Date().toISOString()};const next=[...messages,m];setMessages(next);localStorage.setItem(`gee-demo-messages-${person.id}`,JSON.stringify(next));setTimeout(()=>{const reply:Message={id:`demo-reply-${Date.now()}`,connection_id:person.id,sender_id:person.id,body:demoReply(person.display_name||"friend",body),created_at:new Date().toISOString()};setMessages(prev=>{const updated=[...prev,reply];localStorage.setItem(`gee-demo-messages-${person.id}`,JSON.stringify(updated));return updated})},900);return}
+  const {error}=await supabase.from("connection_messages").insert({connection_id:person.id,sender_id:userId,body});if(error){setText(body);setNotice("Message could not be sent.");setTimeout(()=>setNotice(""),2200)}
+ }
+ function voiceMessage(){setRecording(v=>!v);setNotice(!recording?"🎤 Voice message mode is ready — tap again to stop.":"Voice message recording stopped.");setTimeout(()=>setNotice(""),1800)}
+ function pickPerson(id:string){const i=connections.findIndex(p=>p.id===id);if(i>=0)setActive(i)}
+
+ return <><Nav/><main style={{minHeight:"calc(100vh - 55px)",padding:"16px 12px 28px",fontFamily:"Arial,sans-serif",background:"linear-gradient(180deg,#07070a 0%,#0d0812 100%)"}}>
+  <div style={{maxWidth:980,margin:"0 auto"}}>
+   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"8px 4px 14px"}}>
+    <div><div style={{color:"#e879f9",fontWeight:900,letterSpacing:2,fontSize:12}}>MESSAGES</div><h1 style={{fontSize:"clamp(32px,7vw,48px)",margin:"7px 0 0"}}>Stay connected. <span>💜</span></h1></div>
+    <div style={{display:"flex",alignItems:"center",gap:8,background:"#121217",border:"1px solid #332b39",borderRadius:14,padding:"9px 11px"}}><span>🔎</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search" style={{width:90,background:"transparent",border:0,outline:0,color:"white"}}/></div>
+   </div>
+
+   {loading?<p style={{color:"#a1a1aa"}}>Loading your connections…</p>:!userId?<div style={card}>Sign in to start private conversations.</div>:<>
+    <div style={{marginBottom:12,color:"#a1a1aa",fontSize:13,fontWeight:700}}>CONNECTED FRIENDS <span style={{color:"#e879f9"}}>• {connections.length}</span></div>
+    <div style={friendRail}>{filtered.map((p)=>{const selected=p.id===person?.id;return <button key={p.id} onClick={()=>pickPerson(p.id)} style={{...friend,background:selected?"linear-gradient(145deg,#2a1235,#18111f)":"#101014",borderColor:selected?"#a855f7":"#2c2731"}}><div style={{position:"relative",display:"inline-block"}}><div style={avatar}>{(p.avatar_letter||p.display_name||"G").slice(0,1).toUpperCase()}</div><span style={onlineDot}/></div><div style={{fontSize:12,marginTop:7,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:72}}>{p.display_name||"Friend"}</div></button>})}</div>
+
+    {person&&<div style={chatShell}>
+      <div style={chatHeader}><div style={{display:"flex",alignItems:"center",gap:11}}><div style={{position:"relative"}}><div style={avatarBig}>{(person.avatar_letter||person.display_name||"G").slice(0,1).toUpperCase()}</div><span style={onlineDot}/></div><div><div style={{fontWeight:900,fontSize:17}}>{person.display_name||"GEE friend"}</div><div style={{color:"#22c55e",fontSize:12,marginTop:3}}>● Online • London, UK</div></div></div><div style={{display:"flex",gap:7}}><button title="Voice call" style={topBtn} onClick={()=>setNotice("📞 Voice call is ready for the next voice-session upgrade.")}>📞</button><button title="Video call" style={topBtn} onClick={()=>setNotice("🎥 Video call is ready for the next video-session upgrade.")}>🎥</button><button title="More" style={topBtn} onClick={()=>setNotice("More chat options coming soon.")}>⋮</button></div></div>
+      <div style={chatBody}>{visible.length===0&&<div style={{textAlign:"center",margin:"60px auto",maxWidth:300,color:"#71717a"}}><div style={{fontSize:38}}>💜</div><b>You're connected with {person.display_name}.</b><div style={{marginTop:7}}>Say hello and start a genuine conversation.</div></div>}{visible.map(m=><div key={m.id} style={{margin:"7px 0",display:"flex",justifyContent:m.sender_id===userId?"flex-end":"flex-start"}}><div style={{...bubble,background:m.sender_id===userId?"linear-gradient(135deg,#6d28d9,#a855f7)":"#202026",borderBottomRightRadius:m.sender_id===userId?5:18,borderBottomLeftRadius:m.sender_id===userId?18:5}}>{m.body}<div style={{fontSize:10,opacity:.6,textAlign:"right",marginTop:5}}>{new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}{m.sender_id===userId?"  ✓✓":""}</div></div></div>)}{typing&&<div style={{color:"#a1a1aa",fontSize:12,margin:"4px 0"}}>{person.display_name} is typing…</div>}</div>
+      {notice&&<div style={{padding:"8px 14px",color:"#f0abfc",fontSize:12,background:"#17101c"}}>{notice}</div>}
+      <form onSubmit={send} style={composer}><button type="button" title="Emoji" onClick={()=>setText(t=>t+" 💜")} style={icon}>😊</button><button type="button" title="Voice message" onClick={voiceMessage} style={{...icon,background:recording?"#7f1d1d":"#21152a"}}>{recording?"⏹️":"🎤"}</button><input value={text} onChange={e=>{setText(e.target.value);setTyping(e.target.value.length>0)}} placeholder={`Message ${person.display_name||"friend"}...`} style={input}/><button type="submit" disabled={!text.trim()} style={{...sendBtn,opacity:text.trim()?1:.5}}>➤</button></form>
+    </div>}
+   </>}
+  </div>
+ </main></>
+}
+
+const card={padding:22,background:"#121216",border:"1px solid #2c2c33",borderRadius:18,color:"#d4d4d8"};
+const friendRail={display:"flex",gap:10,overflowX:"auto",padding:"4px 2px 16px",scrollbarWidth:"none" as const};
+const friend={minWidth:84,padding:"9px 7px 8px",border:"1px solid #2c2732",borderRadius:18,color:"white",cursor:"pointer",textAlign:"center" as const};
+const avatar={width:48,height:48,borderRadius:"50%",display:"grid",placeItems:"center",margin:"0 auto",background:"linear-gradient(135deg,#7c3aed,#ec4899)",fontWeight:900,fontSize:19};
+const avatarBig={width:44,height:44,borderRadius:"50%",display:"grid",placeItems:"center",background:"linear-gradient(135deg,#7c3aed,#ec4899)",fontWeight:900,fontSize:18};
+const onlineDot={position:"absolute" as const,right:-1,bottom:1,width:11,height:11,borderRadius:"50%",background:"#22c55e",border:"2px solid #111114"};
+const chatShell={background:"#0b0b0f",border:"1px solid #342b3b",borderRadius:22,overflow:"hidden",boxShadow:"0 20px 70px #0008"};
+const chatHeader={padding:"13px 14px",background:"#151019",borderBottom:"1px solid #302938",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10};
+const topBtn={background:"#241a2b",border:"1px solid #554361",borderRadius:12,padding:"8px 10px",color:"white",cursor:"pointer",fontSize:16};
+const chatBody={minHeight:470,maxHeight:"58vh",overflowY:"auto" as const,padding:"14px 12px",background:"radial-gradient(circle at top,#1a1022 0,#0b0b0f 48%)"};
+const bubble={padding:"10px 13px",borderRadius:18,maxWidth:"78%",color:"#f4f4f5",lineHeight:1.45,boxShadow:"0 3px 12px #0005"};
+const composer={display:"flex",gap:7,alignItems:"center",padding:10,borderTop:"1px solid #302938",background:"#111115"};
+const icon={width:42,height:42,background:"#21152a",border:"1px solid #4b3b55",borderRadius:13,color:"white",fontSize:18,cursor:"pointer"};
+const input={flex:1,minWidth:0,height:44,background:"#09090c",color:"white",border:"1px solid #3a3440",borderRadius:22,padding:"0 15px",outline:"none"};
+const sendBtn={width:44,height:44,border:0,borderRadius:"50%",background:"linear-gradient(135deg,#7c3aed,#ec4899)",color:"white",fontSize:20,fontWeight:900,cursor:"pointer"};
