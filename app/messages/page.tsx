@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 
 type Person = { id: string; display_name: string; city: string; avatar_letter: string };
 type Message = { id: string; connection_id: string; sender_id: string; body: string; created_at: string };
+type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const people: Person[] = [
   { id: "demo-emma", display_name: "Emma", city: "London, UK", avatar_letter: "E" },
@@ -15,47 +16,6 @@ const people: Person[] = [
   { id: "demo-david", display_name: "David", city: "London, UK", avatar_letter: "D" },
   { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
 ];
-
-function replyFor(name: string, input: string) {
-  const b = input.toLowerCase().replace(/\s+/g, " ").trim();
-  if (/\b(joke|funny|make me laugh|laugh)\b/.test(b)) {
-    return "😂 Okay, GEE has entered comedian mode! Why did the phone go to therapy? Because it had too many missed connections! 📱🤣 Want another one?";
-  }
-  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(b)) {
-    return `Come here 🫂💜 I'm here with you, ${name}. You don't have to carry everything alone. Do you want to talk about what's going on, or should I distract you with something fun?`;
-  }
-  if (/\b(hi|hello|hey|yo)\b/.test(b)) {
-    return `Yooo ${name}! 😄💜 Good to hear from you. What's the vibe today?`;
-  }
-  if (/\b(sad|upset|hurt|crying|bad day|not okay)\b/.test(b)) {
-    return `I'm sorry you're having a rough moment, ${name}. 💜 Tell me what happened. I'm listening.`;
-  }
-  if (/\b(music|song)\b/.test(b)) {
-    return "Music mode 🎶 What song have you been playing lately? Tell me the artist too.";
-  }
-  if (/\b(football|soccer|premier league)\b/.test(b)) {
-    return "Ahh football! ⚽😂 Who's your team? And be honest — do they stress you every weekend?";
-  }
-  if (/\b(food|eat|hungry|pizza)\b/.test(b)) {
-    return "Now we're talking 😂🍕 If you could order anything right now, what are you getting?";
-  }
-  if (/\b(good morning)\b/.test(b)) {
-    return "Good morning ☀️💜 What's one thing that would make today a good day?";
-  }
-  if (/\b(good night)\b/.test(b)) {
-    return "Good night 🌙💜 Before you sleep, tell me one thing that happened today.";
-  }
-  if (/\b(love|girlfriend|boyfriend|relationship|dating)\b/.test(b)) {
-    return "Ooooh relationship talk 👀💜 Do you want comfort, honest advice, or do you just need to vent?";
-  }
-  if (/\b(job|work|money|career)\b/.test(b)) {
-    return "Work-and-money mode 💼💜 Tell me what you're trying to achieve and what's getting in the way.";
-  }
-  if (b.endsWith("?")) {
-    return "Good question 👀💜 Tell me a little more and I'll give you a proper answer.";
-  }
-  return `I'm listening, ${name} 💜 Tell me more about that. What happened next?`;
-}
 
 function loadDemoMessages(id: string): Message[] {
   try {
@@ -76,6 +36,7 @@ export default function Messages() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [recording, setRecording] = useState(false);
+  const [replying, setReplying] = useState(false);
 
   const person = connections[active];
   const visible = useMemo(() => messages.filter((m) => m.connection_id === person?.id), [messages, person]);
@@ -117,10 +78,26 @@ export default function Messages() {
     return () => { mounted = false; };
   }, [person?.id]);
 
+  async function getAIReply(name: string, history: Message[]) {
+    const chatHistory: ChatMessage[] = history.map((m) => ({
+      role: m.sender_id === userId || m.sender_id === "guest" ? "user" : "assistant",
+      content: m.body,
+    }));
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companionName: name, messages: chatHistory }),
+    });
+    if (!response.ok) throw new Error("AI request failed");
+    const data = await response.json();
+    if (!data?.reply) throw new Error("No AI reply");
+    return data.reply as string;
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const body = text.trim();
-    if (!body || !person) return;
+    if (!body || !person || replying) return;
     setText("");
 
     if (person.id.startsWith("demo-")) {
@@ -128,14 +105,20 @@ export default function Messages() {
       const next = [...messages, mine];
       setMessages(next);
       localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(next));
-      window.setTimeout(() => {
-        const bot: Message = { id: `g-${Date.now()}`, connection_id: person.id, sender_id: person.id, body: replyFor(person.display_name, body), created_at: new Date().toISOString() };
+      setReplying(true);
+      try {
+        const reply = await getAIReply(person.display_name, next);
+        const bot: Message = { id: `g-${Date.now()}`, connection_id: person.id, sender_id: person.id, body: reply, created_at: new Date().toISOString() };
         setMessages((prev) => {
           const updated = [...prev, bot];
           localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(updated));
           return updated;
         });
-      }, 500);
+      } catch {
+        setNotice(`${person.display_name} is having trouble connecting. Try again in a moment.`);
+      } finally {
+        setReplying(false);
+      }
       return;
     }
 
@@ -164,8 +147,9 @@ export default function Messages() {
           <div style={bodyBox}>
             {!visible.length && <div style={empty}>💜<br /><b>You're connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
             {visible.map((m) => <div key={m.id} style={{ display: "flex", justifyContent: m.sender_id === userId || m.sender_id === "guest" ? "flex-end" : "flex-start", margin: "7px 0" }}><div style={{ ...bubble, background: m.sender_id === userId || m.sender_id === "guest" ? "linear-gradient(135deg,#6d28d9,#a855f7)" : "#202026" }}>{m.body}<div style={time}>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div></div>)}
+            {replying && <div style={typing}>{person.display_name} is thinking… 💜</div>}
           </div>
-          <form onSubmit={send} style={composer}><button type="button" onClick={() => setText((v) => v + " 💜")} style={icon}>😊</button><button type="button" onClick={() => { setRecording((v) => !v); setNotice(recording ? "Voice message stopped." : "🎤 Voice message mode is ready."); }} style={icon}>{recording ? "⏹️" : "🎤"}</button><input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${person.display_name}...`} style={input} /><button type="submit" disabled={!text.trim()} style={{ ...sendButton, opacity: text.trim() ? 1 : .5 }}>➤</button></form>
+          <form onSubmit={send} style={composer}><button type="button" onClick={() => setText((v) => v + " 💜")} style={icon}>😊</button><button type="button" onClick={() => { setRecording((v) => !v); setNotice(recording ? "Voice message stopped." : "🎤 Voice message mode is ready."); }} style={icon}>{recording ? "⏹️" : "🎤"}</button><input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${person.display_name}...`} style={input} /><button type="submit" disabled={!text.trim() || replying} style={{ ...sendButton, opacity: text.trim() && !replying ? 1 : .5 }}>➤</button></form>
         </section>}
       </div>
     </main>
@@ -190,6 +174,7 @@ const action: React.CSSProperties = { display: "inline-grid", placeItems: "cente
 const bodyBox: React.CSSProperties = { minHeight: 470, maxHeight: "58vh", overflowY: "auto", padding: 14, background: "radial-gradient(circle at top,#1a1022,#0b0b0f 48%)" };
 const empty: React.CSSProperties = { textAlign: "center", margin: "60px auto", maxWidth: 300, color: "#71717a", lineHeight: 1.7 };
 const bubble: React.CSSProperties = { padding: "10px 13px", borderRadius: 18, maxWidth: "78%", color: "#f4f4f5", lineHeight: 1.45 };
+const typing: React.CSSProperties = { color: "#c4b5fd", fontSize: 13, padding: "8px 5px" };
 const time: React.CSSProperties = { fontSize: 10, opacity: .6, textAlign: "right", marginTop: 5 };
 const composer: React.CSSProperties = { display: "flex", gap: 7, alignItems: "center", padding: 10, borderTop: "1px solid #302938", background: "#111115" };
 const icon: React.CSSProperties = { width: 42, height: 42, background: "#21152a", border: "1px solid #4b3b55", borderRadius: 13, color: "white", fontSize: 18 };
