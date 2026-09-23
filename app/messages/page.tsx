@@ -38,28 +38,68 @@ const oldReplies = [
 ];
 
 function demoReply(name: string, body: string) {
-  const b = body.toLowerCase().trim();
-  if (/^(hi|hello|hey|yo|how far)\b/.test(b)) return `Yooo ${name}! 😄💜 You made it. What's the vibe today — good day, stressful day, or are we just looking for someone to gist with?`;
-  if (b.includes("lonely") || b.includes("alone") || b.includes("nobody")) return `Ahh, come here 🫂💜 I'm glad you said it. You don't have to carry that feeling quietly. Do you want to talk about what happened, or should I distract you with something fun for a bit?`;
-  if (b.includes("sad") || b.includes("bad day") || b.includes("not okay") || b.includes("hurt")) return `I'm sorry you're having a heavy moment, ${name}. 💜 No pressure to sound strong here. What happened today — was it one big thing or just a lot of little things piling up?`;
-  if (b.includes("how are you") || b.includes("how r u")) return `I'm good 😊💜 and I'm enjoying this chat. But I'm more curious about you — what's one thing that's been on your mind today?`;
-  if (b.includes("nothing") || b.includes("bored")) return `Nothing? 😂 Then I'm officially taking over the entertainment. Pick one: crazy question, music, football, dating gist, food, or tell me a secret you normally keep to yourself 👀`;
-  if (b.includes("music") || b.includes("song")) return `Okayyy, music people are my people 🎶😄 Give me the last song you played. I'll tell you what kind of mood I think it gives off.`;
-  if (b.includes("food") || b.includes("eat") || b.includes("hungry")) return `Now we're talking 😂🍕 What are you craving right now if money wasn't an issue? I'm judging your answer very gently.`;
-  if (b.includes("travel") || b.includes("holiday") || b.includes("vacation")) return `Passport mode activated ✈️😄 If you could disappear for three days tomorrow, where are we going — beach, big city, or somewhere completely quiet?`;
-  if (b.includes("london")) return `London can be a whole adventure 🇬🇧😄 Are you more into chilled spots, nightlife, food, or just walking around discovering random places?`;
-  if (b.includes("football") || b.includes("soccer")) return `Ahh football! 👀⚽ Now you've got my attention. Who's your team — and be honest, are you loyal even when they stress you out? 😂`;
-  if (b.includes("friend") || b.includes("friends")) return `Of course 💜 We can keep it real here — serious conversations, silly jokes, random questions, whatever fits the moment. What kind of friend do you actually enjoy talking to?`;
-  if (b.includes("good morning")) return `Good morning ☀️💜 I'm happy you checked in. What's one little thing that would make today a good day for you?`;
-  if (b.includes("good night")) return `Good night 🌙💜 Before you disappear, give me one thought from today — something funny, annoying, exciting, or completely random.`;
-  if (b.includes("love") || b.includes("girlfriend") || b.includes("boyfriend") || b.includes("relationship")) return `Ooooh, relationship talk 👀💜 I'm listening. Do you want comfort, honest advice, or do you just need to vent without someone judging you?`;
-  if (b.includes("job") || b.includes("work") || b.includes("money")) return `Okay, work-and-money mode 💼💜 What's the goal you're chasing right now, and what's the biggest thing making it difficult? Let's make it feel less overwhelming.`;
-  if (b.includes("thank")) return `Anytime, ${name} 💜😊 I'm enjoying this too. Now don't disappear on me — what else is going on?`;
+  const b = body.toLowerCase().replace(/\s+/g, " ").trim();
+
+  if (/\b(joke|funny|make me laugh|laugh)\b/.test(b)) {
+    return `Okay 😂💜 Here you go: Why did the phone go to therapy? Because it had too many missed connections! 📱🤣 Was that terrible enough, or do you want a better one?`;
+  }
+  if (/\b(hi|hello|hey|yo|how far)\b/.test(b)) {
+    return `Yooo ${name}! 😄💜 Good to hear from you. What's the vibe today — good day, stressful day, or are you just looking for someone to gist with?`;
+  }
+  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(b)) {
+    return `Ahh, come here 🫂💜 I'm glad you said it. You don't have to hide that feeling. Do you want to tell me what's making you feel lonely, or should I distract you with something fun?`;
+  }
+  if (/\b(sad|bad day|not okay|hurt|upset|crying)\b/.test(b)) {
+    return `I'm sorry you're having a heavy moment, ${name}. 💜 You don't have to pretend everything is fine with me. What happened today?`;
+  }
+  if (/\b(how are you|how r u|how're you)\b/.test(b)) {
+    return `I'm good 😊💜 and I'm enjoying this chat. But enough about me — what's one thing that's been on your mind today?`;
+  }
+  if (/\b(nothing|bored)\b/.test(b)) {
+    return `Nothing? 😂 Then I'm taking over the entertainment. Pick one: joke, music, football, dating gist, food, travel, or a random question 👀`;
+  }
+  if (/\b(music|song)\b/.test(b)) {
+    return `Okayyy, music people are my people 🎶😄 What's the last song you played? I'll guess the mood from it.`;
+  }
+  if (/\b(food|eat|hungry|pizza|restaurant)\b/.test(b)) {
+    return `Now we're talking 😂🍕 If money wasn't an issue right now, what food would you order immediately?`;
+  }
+  if (/\b(travel|holiday|vacation|trip)\b/.test(b)) {
+    return `Passport mode activated ✈️😄 If you could disappear for three days tomorrow, where are we going — beach, big city, or somewhere completely quiet?`;
+  }
+  if (/\blondon\b/.test(b)) {
+    return `London can be a whole adventure 🇬🇧😄 Are you more into chilled spots, nightlife, food, or just exploring random places?`;
+  }
+  if (/\b(football|soccer|premier league)\b/.test(b)) {
+    return `Ahh football! 👀⚽ Now you've got my attention. Who's your team — and be honest, are you loyal even when they stress you out? 😂`;
+  }
+  if (/\b(friend|friends|friendship)\b/.test(b)) {
+    return `Of course 💜 We can keep it real here — serious conversations, silly jokes, random questions, whatever fits the moment. What makes someone a good friend to you?`;
+  }
+  if (/\bgood morning\b/.test(b)) {
+    return `Good morning ☀️💜 I'm happy you checked in. What's one little thing that would make today a good day for you?`;
+  }
+  if (/\bgood night\b/.test(b)) {
+    return `Good night 🌙💜 Before you disappear, tell me one thought from today — funny, annoying, exciting, or completely random.`;
+  }
+  if (/\b(love|girlfriend|boyfriend|relationship|dating)\b/.test(b)) {
+    return `Ooooh, relationship talk 👀💜 I'm listening. Do you want comfort, honest advice, or do you just need to vent without being judged?`;
+  }
+  if (/\b(job|work|money|career)\b/.test(b)) {
+    return `Okay, work-and-money mode 💼💜 What's the goal you're chasing right now, and what's making it difficult?`;
+  }
+  if (/\b(thank|thanks)\b/.test(b)) {
+    return `Anytime, ${name} 💜😊 I'm enjoying this too. Now don't disappear on me — what else is going on?`;
+  }
+  if (b.endsWith("?")) {
+    return `Hmm, good question 👀💜 My take is that it depends on the situation. Tell me a little more and I'll give you a proper answer.`;
+  }
+
   const hooks = [
-    `I like where this conversation is going 😄💜 Give me one detail about that that most people wouldn't know.`,
-    `Hmm 👀 now you've got me curious. If you could change one thing about that situation, what would you change first?`,
-    `Okay, I'm with you 💜 Let's make this less boring. Give me the short version, then I'll ask you a proper question.`,
-    `That's a conversation starter right there 😂💜 What's your honest take on it — not the answer you'd give everybody else?`,
+    `I like where this conversation is going 😄💜 Tell me one more detail about that.`,
+    `Hmm 👀 now you've got me curious. What happened next?`,
+    `Okay, I'm with you 💜 Give me the short version and I'll ask you a proper question.`,
+    `That's a conversation starter right there 😂💜 What's your honest take on it?`,
   ];
   return hooks[Math.floor(Math.random() * hooks.length)];
 }
@@ -125,6 +165,7 @@ export default function Messages() {
       }
       return () => { mounted = false; };
     }
+
     (async () => {
       const { data } = await supabase
         .from("connection_messages")
@@ -133,6 +174,7 @@ export default function Messages() {
         .order("created_at", { ascending: true });
       if (mounted) setMessages((data || []) as Message[]);
     })();
+
     const channel = supabase
       .channel(`gee-chat-${person.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "connection_messages", filter: `connection_id=eq.${person.id}` }, (payload) => {
@@ -140,6 +182,7 @@ export default function Messages() {
         setMessages((prev) => prev.some((x) => x.id === m.id) ? prev : [...prev, m]);
       })
       .subscribe();
+
     return () => { mounted = false; supabase.removeChannel(channel); };
   }, [person?.id]);
 
@@ -147,23 +190,39 @@ export default function Messages() {
     e.preventDefault();
     const body = text.trim();
     if (!body || !person || !userId) return;
+
     setText("");
     setTyping(false);
+
     if (person.id.startsWith("demo-")) {
-      const m: Message = { id: `demo-msg-${Date.now()}`, connection_id: person.id, sender_id: userId, body, created_at: new Date().toISOString() };
+      const m: Message = {
+        id: `demo-msg-${Date.now()}`,
+        connection_id: person.id,
+        sender_id: userId,
+        body,
+        created_at: new Date().toISOString(),
+      };
       const next = [...messages, m];
       setMessages(next);
       localStorage.setItem(`gee-demo-messages-${person.id}`, JSON.stringify(next));
+
       setTimeout(() => {
-        const reply: Message = { id: `demo-reply-${Date.now()}`, connection_id: person.id, sender_id: person.id, body: demoReply(person.display_name || "friend", body), created_at: new Date().toISOString() };
+        const reply: Message = {
+          id: `demo-reply-${Date.now()}`,
+          connection_id: person.id,
+          sender_id: person.id,
+          body: demoReply(person.display_name || "friend", body),
+          created_at: new Date().toISOString(),
+        };
         setMessages((prev) => {
           const updated = [...prev, reply];
           localStorage.setItem(`gee-demo-messages-${person.id}`, JSON.stringify(updated));
           return updated;
         });
-      }, 750);
+      }, 650);
       return;
     }
+
     const { error } = await supabase.from("connection_messages").insert({ connection_id: person.id, sender_id: userId, body });
     if (error) {
       setText(body);
