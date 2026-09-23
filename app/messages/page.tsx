@@ -17,9 +17,7 @@ const people: Person[] = [
   { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
 ];
 
-function loadDemoMessages(id: string): Message[] {
-  try { const raw = localStorage.getItem(`gee-v2-messages-${id}`); return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
+function loadDemoMessages(id: string): Message[] { try { const raw = localStorage.getItem(`gee-v2-messages-${id}`); return raw ? JSON.parse(raw) : []; } catch { return []; } }
 
 export default function Messages() {
   const [userId, setUserId] = useState("");
@@ -33,10 +31,16 @@ export default function Messages() {
   const [recording, setRecording] = useState(false);
   const [replying, setReplying] = useState(false);
   const [mobileFriends, setMobileFriends] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const person = connections[active];
   const visible = useMemo(() => messages.filter((m) => m.connection_id === person?.id), [messages, person]);
   const filtered = useMemo(() => connections.filter((p) => p.display_name.toLowerCase().includes(search.toLowerCase())), [connections, search]);
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 720);
+    update(); window.addEventListener("resize", update); return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -45,10 +49,7 @@ export default function Messages() {
       if (!mounted) return;
       if (user) setUserId(user.id); else setNotice("Demo mode — sign in when you want private connections.");
       const { data } = await supabase.rpc("accepted_connections");
-      if (data?.length) {
-        const real = (data as any[]).map((p) => ({ id: p.id, display_name: p.display_name || "Friend", city: p.city || "London, UK", avatar_letter: (p.display_name || "G").slice(0, 1).toUpperCase() }));
-        if (mounted) setConnections(real);
-      }
+      if (data?.length) setConnections((data as any[]).map((p) => ({ id: p.id, display_name: p.display_name || "Friend", city: p.city || "London, UK", avatar_letter: (p.display_name || "G").slice(0, 1).toUpperCase() })));
       if (mounted) setLoading(false);
     })();
     return () => { mounted = false; };
@@ -58,10 +59,7 @@ export default function Messages() {
     if (!person) return;
     if (person.id.startsWith("demo-")) { setMessages(loadDemoMessages(person.id)); return; }
     let mounted = true;
-    (async () => {
-      const { data } = await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id", person.id).order("created_at", { ascending: true });
-      if (mounted) setMessages((data || []) as Message[]);
-    })();
+    (async () => { const { data } = await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id", person.id).order("created_at", { ascending: true }); if (mounted) setMessages((data || []) as Message[]); })();
     return () => { mounted = false; };
   }, [person?.id]);
 
@@ -69,16 +67,11 @@ export default function Messages() {
     const chatHistory: ChatMessage[] = history.map((m) => ({ role: m.sender_id === userId || m.sender_id === "guest" ? "user" : "assistant", content: m.body }));
     const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companionName: name, messages: chatHistory }) });
     if (!response.ok) throw new Error("AI request failed");
-    const data = await response.json();
-    if (!data?.reply) throw new Error("No AI reply");
-    return data.reply as string;
+    const data = await response.json(); if (!data?.reply) throw new Error("No AI reply"); return data.reply as string;
   }
 
   async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const body = text.trim();
-    if (!body || !person || replying) return;
-    setText("");
+    e.preventDefault(); const body = text.trim(); if (!body || !person || replying) return; setText("");
     if (person.id.startsWith("demo-")) {
       const mine: Message = { id: `u-${Date.now()}`, connection_id: person.id, sender_id: userId || "guest", body, created_at: new Date().toISOString() };
       const next = [...messages, mine]; setMessages(next); localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(next)); setReplying(true);
@@ -88,98 +81,33 @@ export default function Messages() {
       } catch { setNotice(`${person.display_name} is having trouble connecting. Try again in a moment.`); } finally { setReplying(false); }
       return;
     }
-    if (!userId) return;
-    const { error } = await supabase.from("connection_messages").insert({ connection_id: person.id, sender_id: userId, body });
-    if (error) setNotice("Message could not be sent.");
+    if (!userId) return; const { error } = await supabase.from("connection_messages").insert({ connection_id: person.id, sender_id: userId, body }); if (error) setNotice("Message could not be sent.");
   }
 
-  function pick(id: string) {
-    const index = connections.findIndex((p) => p.id === id);
-    if (index >= 0) { setActive(index); setMobileFriends(false); }
-  }
+  function pick(id: string) { const index = connections.findIndex((p) => p.id === id); if (index >= 0) { setActive(index); setMobileFriends(false); } }
 
-  if (loading) return <><Nav /><main style={page}><p style={muted}>Loading GEE…</p></main></>;
+  if (loading) return <><Nav /><main className="gee-page"><p className="muted">Loading GEE…</p></main></>;
 
-  return <>
-    <Nav />
-    <main style={page}>
-      <div style={wrap}>
-        <div style={top}><div><div style={eyebrow}>MESSAGES</div><h1 style={title}>Stay connected. <span>💜</span></h1></div><button style={friendsToggle} onClick={() => setMobileFriends(true)}>☰ Friends</button><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" style={searchBox} /></div>
-        {notice && <div style={noticeStyle}>{notice}</div>}
+  return <><Nav /><main className="gee-page"><div className="gee-wrap">
+    <div className="gee-top"><div><div className="eyebrow">MESSAGES</div><h1>Stay connected. <span>💜</span></h1></div><div className="top-actions"><button className="friends-toggle" onClick={() => setMobileFriends(true)}>☰ Friends</button><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" /></div></div>
+    {notice && <div className="notice">{notice}</div>}
+    <div className="gee-layout">
+      {!isMobile && <aside className="friends-panel"><div className="side-title">CONNECTED <span>• {connections.length}</span></div><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search friends" />{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} className={`friend ${p.id === person?.id ? "selected" : ""}`}><div className="avatar">{p.avatar_letter}</div><div><b>{p.display_name}</b><small>● Online</small></div></button>)}</aside>}
 
-        <div style={layout}>
-          <aside style={sidebar}>
-            <div style={sideTitle}>CONNECTED <span>• {connections.length}</span></div>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search friends" style={sideSearch} />
-            <div style={friendList}>{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} style={{ ...friend, background: p.id === person?.id ? "#21142d" : "#111115" }}><div style={avatar}>{p.avatar_letter}</div><div style={friendText}><b>{p.display_name}</b><small>● Online</small></div></button>)}</div>
-          </aside>
+      {isMobile && mobileFriends && <div className="mobile-overlay" onClick={() => setMobileFriends(false)}><div className="mobile-drawer" onClick={(e) => e.stopPropagation()}><div className="drawer-head"><b>Friends</b><button onClick={() => setMobileFriends(false)}>✕</button></div><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search friends" />{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} className={`friend ${p.id === person?.id ? "selected" : ""}`}><div className="avatar">{p.avatar_letter}</div><div><b>{p.display_name}</b><small>● Online</small></div></button>)}</div></div>}
 
-          {mobileFriends && <div style={mobileOverlay} onClick={() => setMobileFriends(false)}><div style={mobileDrawer} onClick={(e) => e.stopPropagation()}><div style={drawerHeader}><b>Friends</b><button style={close} onClick={() => setMobileFriends(false)}>✕</button></div>{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} style={{ ...mobileFriend, background: p.id === person?.id ? "#21142d" : "#111115" }}><div style={avatar}>{p.avatar_letter}</div><div style={friendText}><b>{p.display_name}</b><small>● Online</small></div></button>)}</div></div>}
-
-          {person && <section style={chat}>
-            <header style={header}><button style={mobileMenu} onClick={() => setMobileFriends(true)}>☰</button><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><div style={avatar}>{person.avatar_letter}</div><div style={personInfo}><b>{person.display_name}</b><div style={online}>● Online • {person.city}</div></div></div><div style={actions}><a href={`/call?type=voice&name=${encodeURIComponent(person.display_name)}`} style={action}>📞</a><a href={`/call?type=video&name=${encodeURIComponent(person.display_name)}`} style={action}>🎥</a></div></header>
-            <div style={bodyBox}>
-              {!visible.length && <div style={empty}>💜<br /><b>You're connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
-              {visible.map((m) => <div key={m.id} style={{ display: "flex", justifyContent: m.sender_id === userId || m.sender_id === "guest" ? "flex-end" : "flex-start", margin: "8px 0" }}><div style={{ ...bubble, background: m.sender_id === userId || m.sender_id === "guest" ? "linear-gradient(135deg,#6d28d9,#a855f7)" : "#202026" }}>{m.body}<div style={time}>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div></div>)}
-              {replying && <div style={typing}>{person.display_name} is thinking… 💜</div>}
-            </div>
-            <form onSubmit={send} style={composer}><button type="button" onClick={() => setText((v) => v + " 💜")} style={icon}>😊</button><button type="button" onClick={() => { setRecording((v) => !v); setNotice(recording ? "Voice message stopped." : "🎤 Voice message mode is ready."); }} style={icon}>{recording ? "⏹️" : "🎤"}</button><input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${person.display_name}...`} style={input} /><button type="submit" disabled={!text.trim() || replying} style={{ ...sendButton, opacity: text.trim() && !replying ? 1 : .5 }}>➤</button></form>
-          </section>}
+      {person && <section className="gee-chat">
+        <header className="chat-head"><button className="mobile-menu" onClick={() => setMobileFriends(true)}>☰</button><div className="person"><div className="avatar">{person.avatar_letter}</div><div><b>{person.display_name}</b><small className="online">● Online • {person.city}</small></div></div><div className="chat-actions"><a href={`/call?type=voice&name=${encodeURIComponent(person.display_name)}`}>📞</a><a href={`/call?type=video&name=${encodeURIComponent(person.display_name)}`}>🎥</a></div></header>
+        <div className="chat-body">
+          {!visible.length && <div className="empty">💜<br /><b>You're connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
+          {visible.map((m) => <div key={m.id} className={`row ${m.sender_id === userId || m.sender_id === "guest" ? "mine" : "theirs"}`}><div className="bubble">{m.body}<div className="time">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div></div>)}
+          {replying && <div className="typing">{person.display_name} is thinking… 💜</div>}
         </div>
-      </div>
-    </main>
-  </>;
-}
-
-const page: React.CSSProperties = { minHeight: "calc(100vh - 55px)", padding: "16px 12px 28px", background: "linear-gradient(180deg,#07070a,#0d0812)", color: "white", fontFamily: "Arial,sans-serif" };
-const wrap: React.CSSProperties = { maxWidth: 1120, margin: "0 auto" };
-const top: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "6px 2px 14px" };
-const eyebrow: React.CSSProperties = { color: "#e879f9", fontWeight: 900, letterSpacing: 2, fontSize: 11 };
-const title: React.CSSProperties = { fontSize: "clamp(27px,6vw,42px)", margin: "5px 0" };
-const searchBox: React.CSSProperties = { display: "none", width: 110, background: "#121217", border: "1px solid #332b39", borderRadius: 12, padding: "9px", color: "white", outline: "none" };
-const friendsToggle: React.CSSProperties = { display: "none", marginLeft: "auto", background: "#21152a", border: "1px solid #554361", color: "white", borderRadius: 12, padding: "9px 12px" };
-const noticeStyle: React.CSSProperties = { padding: "9px 12px", marginBottom: 10, background: "#17101c", color: "#f0abfc", borderRadius: 10, fontSize: 12 };
-const layout: React.CSSProperties = { display: "grid", gridTemplateColumns: "280px minmax(0,1fr)", gap: 14, alignItems: "stretch" };
-const sidebar: React.CSSProperties = { background: "#101014", border: "1px solid #302938", borderRadius: 20, padding: 12, minWidth: 0 };
-const sideTitle: React.CSSProperties = { color: "#a1a1aa", fontSize: 12, fontWeight: 800, letterSpacing: 1, margin: "2px 2px 10px" };
-const sideSearch: React.CSSProperties = { width: "100%", boxSizing: "border-box", background: "#09090c", border: "1px solid #342d3a", borderRadius: 12, padding: "10px", color: "white", outline: "none", marginBottom: 9 };
-const friendList: React.CSSProperties = { display: "grid", gap: 5 };
-const friend: React.CSSProperties = { width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", border: "1px solid transparent", borderRadius: 14, color: "white", textAlign: "left" };
-const mobileFriend: React.CSSProperties = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px", border: "1px solid #2c2732", borderRadius: 14, color: "white", textAlign: "left", marginBottom: 6 };
-const friendText: React.CSSProperties = { display: "grid", gap: 4, minWidth: 0 };
-const avatar: React.CSSProperties = { width: 42, height: 42, flex: "0 0 42px", borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7c3aed,#ec4899)", fontWeight: 900 };
-const chat: React.CSSProperties = { background: "#0b0b0f", border: "1px solid #342b3b", borderRadius: 20, overflow: "hidden", minWidth: 0, boxShadow: "0 18px 50px rgba(0,0,0,.25)" };
-const header: React.CSSProperties = { minHeight: 68, padding: "10px 13px", background: "#151019", borderBottom: "1px solid #302938", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 };
-const personInfo: React.CSSProperties = { minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" };
-const online: React.CSSProperties = { color: "#22c55e", fontSize: 11, marginTop: 3 };
-const actions: React.CSSProperties = { display: "flex", flexShrink: 0 };
-const action: React.CSSProperties = { display: "inline-grid", placeItems: "center", width: 40, height: 40, marginLeft: 5, background: "#241a2b", border: "1px solid #554361", borderRadius: 11, color: "white", textDecoration: "none" };
-const mobileMenu: React.CSSProperties = { display: "none", background: "transparent", border: 0, color: "#ddd", fontSize: 20 };
-const bodyBox: React.CSSProperties = { minHeight: "52vh", maxHeight: "62vh", overflowY: "auto", padding: "18px clamp(12px,3vw,28px)", background: "radial-gradient(circle at top,#1a1022,#0b0b0f 48%)" };
-const empty: React.CSSProperties = { textAlign: "center", margin: "70px auto", maxWidth: 300, color: "#71717a", lineHeight: 1.7 };
-const bubble: React.CSSProperties = { padding: "11px 14px", borderRadius: 18, maxWidth: "min(72%,620px)", color: "#f4f4f5", lineHeight: 1.5, overflowWrap: "anywhere", boxShadow: "0 5px 18px rgba(0,0,0,.16)" };
-const typing: React.CSSProperties = { color: "#c4b5fd", fontSize: 13, padding: "8px 5px" };
-const time: React.CSSProperties = { fontSize: 10, opacity: .6, textAlign: "right", marginTop: 5 };
-const composer: React.CSSProperties = { display: "flex", gap: 7, alignItems: "center", padding: 10, borderTop: "1px solid #302938", background: "#111115" };
-const icon: React.CSSProperties = { width: 42, height: 42, flex: "0 0 42px", background: "#21152a", border: "1px solid #4b3b55", borderRadius: 13, color: "white", fontSize: 18 };
-const input: React.CSSProperties = { flex: 1, minWidth: 0, height: 44, background: "#09090c", color: "white", border: "1px solid #3a3440", borderRadius: 22, padding: "0 15px", outline: "none" };
-const sendButton: React.CSSProperties = { width: 44, height: 44, flex: "0 0 44px", border: 0, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#ec4899)", color: "white", fontSize: 20 };
-const mobileOverlay: React.CSSProperties = { position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.62)", display: "none" };
-const mobileDrawer: React.CSSProperties = { width: "min(84vw,340px)", height: "100%", background: "#101014", borderRight: "1px solid #3b3042", padding: 14, overflowY: "auto" };
-const drawerHeader: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 14, marginBottom: 8, borderBottom: "1px solid #302938" };
-const close: React.CSSProperties = { background: "transparent", border: 0, color: "#ddd", fontSize: 20 };
-const muted: React.CSSProperties = { color: "#a1a1aa" };
-
-if (typeof document !== "undefined") {
-  const id = "gee-message-responsive-style";
-  if (!document.getElementById(id)) {
-    const style = document.createElement("style");
-    style.id = id;
-    style.textContent = `
-      @media (max-width: 720px) {
-        .gee-noop{}
-      }
-    `;
-    document.head.appendChild(style);
-  }
+        <form onSubmit={send} className="composer"><button type="button" onClick={() => setText((v) => v + " 💜")}>😊</button><button type="button" onClick={() => { setRecording((v) => !v); setNotice(recording ? "Voice message stopped." : "🎤 Voice message mode is ready."); }}>{recording ? "⏹️" : "🎤"}</button><input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${person.display_name}...`} /><button className="send" type="submit" disabled={!text.trim() || replying}>➤</button></form>
+      </section>}
+    </div>
+  </div></main>
+  <style jsx global>{`*{box-sizing:border-box}.gee-page{min-height:calc(100vh - 55px);padding:16px 12px 28px;background:linear-gradient(180deg,#07070a,#0d0812);color:#fff;font-family:Arial,sans-serif}.gee-wrap{max-width:1120px;margin:auto}.gee-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 2px 14px}.gee-top h1{font-size:clamp(27px,6vw,42px);margin:5px 0}.eyebrow{color:#e879f9;font-weight:900;letter-spacing:2px;font-size:11px}.top-actions{display:flex;gap:8px}.top-actions input,.friends-panel>input,.mobile-drawer>input{background:#121217;border:1px solid #332b39;border-radius:12px;padding:10px;color:#fff;outline:none}.top-actions input{width:130px}.friends-toggle{display:none;background:#21152a;border:1px solid #554361;color:#fff;border-radius:12px;padding:9px 12px}.notice{padding:9px 12px;margin-bottom:10px;background:#17101c;color:#f0abfc;border-radius:10px;font-size:12px}.gee-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px}.friends-panel{background:#101014;border:1px solid #302938;border-radius:20px;padding:12px;min-width:0}.side-title{color:#a1a1aa;font-size:12px;font-weight:800;letter-spacing:1px;margin:2px 2px 10px}.side-title span{font-weight:500}.friends-panel>input{width:100%;margin-bottom:8px}.friend{width:100%;display:flex;align-items:center;gap:10px;padding:9px 8px;border:1px solid transparent;border-radius:14px;color:#fff;text-align:left;background:#111115;margin:2px 0}.friend.selected{background:#21142d;border-color:#6d3b86}.friend small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:900}.gee-chat{background:#0b0b0f;border:1px solid #342b3b;border-radius:20px;overflow:hidden;min-width:0;box-shadow:0 18px 50px rgba(0,0,0,.25)}.chat-head{min-height:68px;padding:10px 13px;background:#151019;border-bottom:1px solid #302938;display:flex;justify-content:space-between;align-items:center;gap:10px}.person{display:flex;align-items:center;gap:10px;min-width:0}.person>div:last-child{min-width:0}.online{display:block;color:#22c55e;font-size:11px;margin-top:3px}.chat-actions{display:flex;flex-shrink:0}.chat-actions a{display:grid;place-items:center;width:40px;height:40px;margin-left:5px;background:#241a2b;border:1px solid #554361;border-radius:11px;color:#fff;text-decoration:none}.mobile-menu{display:none;background:none;border:0;color:#ddd;font-size:20px}.chat-body{min-height:52vh;max-height:62vh;overflow-y:auto;padding:18px clamp(12px,3vw,28px);background:radial-gradient(circle at top,#1a1022,#0b0b0f 48%)}.row{display:flex;margin:8px 0}.row.mine{justify-content:flex-end}.row.theirs{justify-content:flex-start}.bubble{padding:11px 14px;border-radius:18px;max-width:min(72%,620px);color:#f4f4f5;line-height:1.5;overflow-wrap:anywhere;box-shadow:0 5px 18px rgba(0,0,0,.16);background:#202026}.mine .bubble{background:linear-gradient(135deg,#6d28d9,#a855f7)}.time{font-size:10px;opacity:.6;text-align:right;margin-top:5px}.typing{color:#c4b5fd;font-size:13px;padding:8px 5px}.empty{text-align:center;margin:70px auto;max-width:300px;color:#71717a;line-height:1.7}.composer{display:flex;gap:7px;align-items:center;padding:10px;border-top:1px solid #302938;background:#111115}.composer button{width:42px;height:42px;flex:0 0 42px;background:#21152a;border:1px solid #4b3b55;border-radius:13px;color:#fff;font-size:18px}.composer input{flex:1;min-width:0;height:44px;background:#09090c;color:#fff;border:1px solid #3a3440;border-radius:22px;padding:0 15px;outline:none}.composer .send{border:0;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899)}.composer .send:disabled{opacity:.45}.mobile-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex}.mobile-drawer{width:min(84vw,340px);height:100%;background:#101014;border-right:1px solid #3b3042;padding:14px;overflow-y:auto}.drawer-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:10px;border-bottom:1px solid #302938}.drawer-head button{background:none;border:0;color:#ddd;font-size:20px}.mobile-drawer>input{width:100%;margin-bottom:8px}
+@media(max-width:720px){.gee-page{padding:8px 7px 20px}.gee-top{padding:4px 3px 10px}.gee-top h1{font-size:25px}.top-actions input{display:none}.friends-toggle{display:block}.gee-layout{display:block}.friends-panel{display:none}.mobile-menu{display:block}.chat-head{padding:8px 9px}.chat-actions a{width:36px;height:36px}.chat-body{min-height:58vh;max-height:65vh;padding:14px 10px}.bubble{max-width:84%;padding:10px 12px}.composer{padding:8px;gap:5px}.composer button{width:39px;height:39px;flex-basis:39px}.composer input{height:42px}.avatar{width:38px;height:38px;flex-basis:38px}.person b{font-size:14px}.online{font-size:10px}}
+`}</style></>;
 }
