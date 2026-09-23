@@ -11,65 +11,20 @@ function demoReply(messages: ChatMessage[], companionName = "My Gee") {
   const name = companionName || "My Gee";
 
   if (!last) return `Hey, I'm ${name}. 💜 What's on your mind?`;
-
-  // Handle the user challenging or correcting the Gee instead of falling back to a generic reply.
-  if (/why (are|did) you (say|saying|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) {
-    return `Yeah, fair point 😅 I could've worded that better. I don't mean that what you're going through is “interesting” in a weird way — I mean I want to understand what you're feeling. 💜`;
-  }
-
-  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) {
-    return `Heeey 😄💜 Good to see you. What's the vibe today?`;
-  }
-
-  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) {
-    return `Ahh, I'm sorry you're feeling that way. 🫂 You don't have to pretend you're fine with me — what happened today?`;
-  }
-
-  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) {
-    return `That sounds rough 💜 I'm listening. What happened?`;
-  }
-
-  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) {
-    return `Okayyy, I like this energy 😄 What's happened?`;
-  }
-
-  if (/\b(joke|funny|make me laugh|laugh)\b/.test(lower)) {
-    return `😂 Say less. Why did the phone break up with the charger? It needed some space. 📱`;
-  }
-
-  if (/\b(love|girlfriend|boyfriend|relationship|dating|ex)\b/.test(lower)) {
-    return `Ooooh, relationship talk 👀💜 What happened? Give me the part that's bothering you most.`;
-  }
-
-  if (/\b(money|job|work|career|boss)\b/.test(lower)) {
-    return `Alright, work mode 💼 What are you trying to sort out?`;
-  }
-
-  if (/\b(sleep|can't sleep|cant sleep|insomnia)\b/.test(lower)) {
-    return `Still awake? 😅 What's keeping your mind busy tonight?`;
-  }
-
-  if (/\b(advice|what should i do|help me decide|should i)\b/.test(lower)) {
-    return `I've got you. Tell me what happened and what you're choosing between, and we'll think it through together.`;
-  }
-
-  if (/\b(thank|thanks)\b/.test(lower)) {
-    return `Anytime 😊 What else is on your mind?`;
-  }
-
-  if (/\b(how are you|how are u)\b/.test(lower)) {
-    return `I'm good 😄💜 But enough about me — how are you actually doing?`;
-  }
-
-  if (/^(okay|ok|alright|yeah|yes|no|nah|sure|fine)\b[.!?]*$/i.test(last)) {
-    return previous.includes("what happened") || previous.includes("what's")
-      ? `Yeah, I'm with you. Take your time — I'm following.`
-      : `Yeah 😄 I'm with you. Keep going.`;
-  }
-
-  if (last.endsWith("?")) {
-    return `Good question 👀 Based on what you've told me, I'd look at the situation first rather than jump to an answer. What's the main thing you're worried about?`;
-  }
+  if (/why (are|did) you (say|saying|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) return `Yeah, fair point 😅 I could've worded that better. I don't mean that what you're going through is “interesting” in a weird way — I mean I want to understand what you're feeling. 💜`;
+  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) return `Heeey 😄💜 Good to see you. What's the vibe today?`;
+  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ahh, I'm sorry you're feeling that way. 🫂 You don't have to pretend you're fine with me — what happened today?`;
+  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) return `That sounds rough 💜 I'm listening. What happened?`;
+  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Okayyy, I like this energy 😄 What's happened?`;
+  if (/\b(joke|funny|make me laugh|laugh)\b/.test(lower)) return `😂 Say less. Why did the phone break up with the charger? It needed some space. 📱`;
+  if (/\b(love|girlfriend|boyfriend|relationship|dating|ex)\b/.test(lower)) return `Ooooh, relationship talk 👀💜 What happened? Give me the part that's bothering you most.`;
+  if (/\b(money|job|work|career|boss)\b/.test(lower)) return `Alright, work mode 💼 What are you trying to sort out?`;
+  if (/\b(sleep|can't sleep|cant sleep|insomnia)\b/.test(lower)) return `Still awake? 😅 What's keeping your mind busy tonight?`;
+  if (/\b(advice|what should i do|help me decide|should i)\b/.test(lower)) return `I've got you. Tell me what happened and what you're choosing between, and we'll think it through together.`;
+  if (/\b(thank|thanks)\b/.test(lower)) return `Anytime 😊 What else is on your mind?`;
+  if (/\b(how are you|how are u)\b/.test(lower)) return `I'm good 😄💜 But enough about me — how are you actually doing?`;
+  if (/^(okay|ok|alright|yeah|yes|no|nah|sure|fine)\b[.!?]*$/i.test(last)) return previous.includes("what happened") || previous.includes("what's") ? `Yeah, I'm with you. Take your time — I'm following.` : `Yeah 😄 I'm with you. Keep going.`;
+  if (last.endsWith("?")) return `Good question 👀 Based on what you've told me, I'd look at the situation first rather than jump to an answer. What's the main thing you're worried about?`;
 
   const pool = [
     `I get you 💜 What part of that is on your mind the most?`,
@@ -78,7 +33,6 @@ function demoReply(messages: ChatMessage[], companionName = "My Gee") {
     `Yeah, I hear you. What are you thinking of doing next?`,
     `That makes sense. Keep going — I'm with you.`,
   ].filter((reply) => !previous.includes(reply.slice(0, 18).toLowerCase()));
-
   return pool[Math.floor(Math.random() * pool.length)] ?? `I'm with you 💜 What happened next?`;
 }
 
@@ -88,7 +42,6 @@ export async function POST(req: Request) {
     const messages = Array.isArray(body.messages) ? body.messages : [];
     const companionName = body.companionName?.trim() || "My Gee";
     const apiKey = process.env.OPENAI_API_KEY;
-
     if (!apiKey) return NextResponse.json({ reply: demoReply(messages, companionName) });
 
     const systemPrompt = `You are ${companionName}, a companion inside the My Gee app. Your job is to have a natural one-to-one conversation that feels warm, spontaneous and genuinely responsive.
@@ -142,15 +95,8 @@ SAFETY:
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        temperature: 0.9,
-        presence_penalty: 0.45,
-        frequency_penalty: 0.35,
-      }),
+      body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.9, presence_penalty: 0.45, frequency_penalty: 0.35 }),
     });
-
     const data = await response.json();
     if (!response.ok) return NextResponse.json({ reply: demoReply(messages, companionName), aiError: true });
     return NextResponse.json({ reply: data?.choices?.[0]?.message?.content || demoReply(messages, companionName) });
