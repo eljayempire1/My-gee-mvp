@@ -6,8 +6,13 @@ import Nav from "../components/Nav";
 type Person={id:string;display_name:string|null;city:string|null;bio:string|null;interests:string[]};
 const demoPeople:Person[]=[
  {id:"demo-emma",display_name:"Emma",city:"London, UK",bio:"Music, travel and finding good food. Always happy to meet genuine people.",interests:["Music","Travel","Food"]},
+ {id:"demo-sarah",display_name:"Sarah",city:"London, UK",bio:"Creative, curious and always planning the next adventure.",interests:["Travel","Art","Business"]},
+ {id:"demo-olivia",display_name:"Olivia",city:"London, UK",bio:"Coffee, books and good conversations. Always up for discovering somewhere new.",interests:["Books","Coffee","Travel"]},
+ {id:"demo-sophia",display_name:"Sophia",city:"London, UK",bio:"Love fitness, fashion and trying new restaurants with positive people.",interests:["Fitness","Fashion","Food"]},
  {id:"demo-david",display_name:"David",city:"London, UK",bio:"Tech, business and fitness. Looking for positive conversations.",interests:["Technology","Business","Fitness"]},
- {id:"demo-sarah",display_name:"Sarah",city:"London, UK",bio:"Creative, curious and always planning the next adventure.",interests:["Travel","Art","Business"]}
+ {id:"demo-james",display_name:"James",city:"London, UK",bio:"Football, music and exploring London. Always happy to meet genuine people.",interests:["Football","Music","Travel"]},
+ {id:"demo-michael",display_name:"Michael",city:"London, UK",bio:"Entrepreneurial, relaxed and into great food, music and good vibes.",interests:["Business","Music","Food"]},
+ {id:"demo-daniel",display_name:"Daniel",city:"London, UK",bio:"Fitness, technology and weekend adventures. Here for genuine connections.",interests:["Fitness","Technology","Travel"]}
 ];
 
 export default function Discover(){
