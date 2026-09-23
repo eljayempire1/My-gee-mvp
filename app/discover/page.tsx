@@ -11,7 +11,7 @@ const demoPeople:Person[]=[
  {id:"demo-sophia",display_name:"Sophia",city:"London, UK",bio:"Love fitness, fashion and trying new restaurants with positive people.",interests:["Fitness","Fashion","Food"]},
  {id:"demo-david",display_name:"David",city:"London, UK",bio:"Tech, business and fitness. Looking for positive conversations.",interests:["Technology","Business","Fitness"]},
  {id:"demo-james",display_name:"James",city:"London, UK",bio:"Football, music and exploring London. Always happy to meet genuine people.",interests:["Football","Music","Travel"]},
- {id:"demo-michael",display_name:"Michael",city:"London, UK",bio:"Entrepreneurial, relaxed and into great food, music and good vibes.",interests:["Business","Music","Food"]},
+ {id:"demo-elijah",display_name:"Elijah OBONOGWU",city:"London, UK",bio:"Entrepreneurial, relaxed and into great food, music and good vibes.",interests:["Business","Music","Food"]},
  {id:"demo-daniel",display_name:"Daniel",city:"London, UK",bio:"Fitness, technology and weekend adventures. Here for genuine connections.",interests:["Fitness","Technology","Travel"]}
 ];
 
