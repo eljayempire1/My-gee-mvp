@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Nav from "../components/Nav";
 import { supabase } from "../../lib/supabase";
 
+const APP_URL = "https://my-gee-mvp.vercel.app";
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -22,7 +24,7 @@ export default function LoginPage() {
             email,
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/login`,
+              emailRedirectTo: `${APP_URL}/login`,
             },
           });
       if (result.error) throw result.error;
