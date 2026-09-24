@@ -10,10 +10,20 @@ const personalityInstructions: Record<string, string> = {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { sdp?: string; personality?: string };
-    const sdp = body.sdp?.trim();
-    const apiKey = process.env.OPENAI_API_KEY;
+    const contentType = req.headers.get("content-type") || "";
+    let sdp = "";
+    let requestedPersonality = "friendly";
 
+    if (contentType.includes("application/sdp")) {
+      sdp = (await req.text()).trim();
+      requestedPersonality = new URL(req.url).searchParams.get("personality") || "friendly";
+    } else {
+      const body = (await req.json()) as { sdp?: string; personality?: string };
+      sdp = body.sdp?.trim() || "";
+      requestedPersonality = body.personality || "friendly";
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "OPENAI_API_KEY is not configured in Production." }, { status: 503 });
     }
@@ -21,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing WebRTC SDP offer." }, { status: 400 });
     }
 
-    const personality = personalityInstructions[body.personality || "friendly"] || personalityInstructions.friendly;
+    const personality = personalityInstructions[requestedPersonality] || personalityInstructions.friendly;
     const session = {
       type: "realtime",
       model: "gpt-realtime-2.1",
@@ -59,8 +69,8 @@ export async function POST(req: Request) {
     }
 
     return new NextResponse(text, {
-      status: response.status,
-      headers: { "Content-Type": "application/json" },
+      status: 200,
+      headers: { "Content-Type": "application/sdp" },
     });
   } catch (error) {
     console.error("Realtime session route error:", error);
