@@ -7,15 +7,21 @@ declare global { interface Window { webkitSpeechRecognition?:new()=>SpeechRecogn
 
 export default function CallPage(){
  const params=useSearchParams(); const type=params.get("type")==="video"?"video":"voice"; const name=params.get("name")||"Gee friend";
- const videoRef=useRef<HTMLVideoElement>(null); const streamRef=useRef<MediaStream|null>(null); const recognitionRef=useRef<SpeechRecognitionLike|null>(null); const speakingRef=useRef(false); const aliveRef=useRef(true);
+ const videoRef=useRef<HTMLVideoElement>(null); const streamRef=useRef<MediaStream|null>(null); const recognitionRef=useRef<SpeechRecognitionLike|null>(null); const speakingRef=useRef(false); const aliveRef=useRef(true); const startingVoiceRef=useRef(false);
  const [status,setStatus]=useState("Starting call…"); const [seconds,setSeconds]=useState(0); const [muted,setMuted]=useState(false); const [camera,setCamera]=useState(type==="video"); const [error,setError]=useState(""); const [voiceOn,setVoiceOn]=useState(false); const [listening,setListening]=useState(false);
 
  function speak(text:string,onDone?:()=>void){
   if(typeof window==="undefined"||!("speechSynthesis" in window)){onDone?.();return;}
-  window.speechSynthesis.cancel(); speakingRef.current=true;
+  const synth=window.speechSynthesis;
+  synth.cancel();
+  synth.resume();
+  speakingRef.current=true;
   const u=new SpeechSynthesisUtterance(text); u.lang="en-GB"; u.rate=.98; u.pitch=1; u.volume=1;
+  const voices=synth.getVoices();
+  const preferred=voices.find(v=>v.lang.toLowerCase()==="en-gb")||voices.find(v=>v.lang.toLowerCase().startsWith("en-gb"))||voices.find(v=>v.lang.toLowerCase().startsWith("en"));
+  if(preferred)u.voice=preferred;
   u.onend=()=>{speakingRef.current=false;onDone?.()}; u.onerror=()=>{speakingRef.current=false;onDone?.()};
-  window.speechSynthesis.speak(u);
+  synth.speak(u);
  }
 
  function beginListening(){
@@ -34,12 +40,14 @@ export default function CallPage(){
  }
 
  function startVoice(){
-  setVoiceOn(true); setError(""); setStatus("Connected");
+  if(startingVoiceRef.current||voiceOn)return;
+  startingVoiceRef.current=true; setVoiceOn(true); setError(""); setStatus("Connected");
+  if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.resume();
   const intro=`Hi, I'm ${name}. I'm here with you. You can talk to me naturally. What's on your mind?`;
-  speak(intro,()=>{if(aliveRef.current)beginListening()});
+  speak(intro,()=>{startingVoiceRef.current=false;if(aliveRef.current)beginListening()});
  }
 
- useEffect(()=>{aliveRef.current=true; const start=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==="video"});if(!aliveRef.current)return;streamRef.current=stream;if(videoRef.current&&type==="video"){videoRef.current.srcObject=stream;await videoRef.current.play().catch(()=>{})}setStatus("Connected");}catch(e){console.error(e);setError("Microphone/camera permission is needed to start the call.");setStatus("Call not started");}};start();return()=>{aliveRef.current=false;recognitionRef.current?.stop();streamRef.current?.getTracks().forEach(t=>t.stop());if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()}},[type]);
+ useEffect(()=>{aliveRef.current=true; const start=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==="video"});if(!aliveRef.current)return;streamRef.current=stream;if(videoRef.current&&type==="video"){videoRef.current.srcObject=stream;await videoRef.current.play().catch(()=>{})}setStatus("Connected");if(type==="voice")setTimeout(()=>{if(aliveRef.current&&!voiceOn)startVoice()},300);}catch(e){console.error(e);setError("Microphone/camera permission is needed to start the call.");setStatus("Call not started");}};start();return()=>{aliveRef.current=false;recognitionRef.current?.stop();streamRef.current?.getTracks().forEach(t=>t.stop());if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()}},[type]);
  useEffect(()=>{if(status!=="Connected"&&status!=="Thinking…")return;const id=setInterval(()=>setSeconds(s=>s+1),1000);return()=>clearInterval(id)},[status]);
  function toggleMute(){const next=!muted;streamRef.current?.getAudioTracks().forEach(t=>t.enabled=!next);setMuted(next)}
  function toggleCamera(){if(type!=="video")return;const next=!camera;streamRef.current?.getVideoTracks().forEach(t=>t.enabled=next);setCamera(next)}
@@ -52,7 +60,7 @@ export default function CallPage(){
    <div style={{position:"absolute",bottom:30,left:0,right:0,textAlign:"center"}}><div style={{fontSize:24,fontWeight:900}}>{name}</div><div style={{color:"#a1a1aa",marginTop:6}}>{error|| (listening?"🎙️ Listening…":voiceOn?"🔊 Voice is on — talk naturally":"You're connected to the GEE call screen 💜")}</div>
    {type==="voice"&&!voiceOn&&status==="Connected"&&<button onClick={startVoice} style={{marginTop:18,padding:"13px 22px",borderRadius:999,border:"1px solid #c084fc",background:"linear-gradient(135deg,#7c3aed,#c026d3)",color:"white",fontWeight:800,fontSize:16}}>🔊 Start voice</button>}</div>
   </div>
-  <div style={{display:"flex",justifyContent:"center",gap:14,padding:20,borderTop:"1px solid #302938"}}><button onClick={toggleMute} style={control}>{muted?"🔇":"🎙️"}</button>{type==="video"&&<button onClick={toggleCamera} style={control}>{camera?"📷":"🚫"}</button>}<button onClick={end} style={{...control,background:"#b91c1c",borderColor:"#ef4444"}}>☎</button></div>
+  <div style={{display:"flex",justifyContent:"center",gap:14,padding:20,borderTop:"1px solid #302938",flexWrap:"wrap"}}>{type==="voice"&&!voiceOn&&<button onClick={startVoice} style={{...control,width:"auto",padding:"0 22px",borderRadius:999,background:"linear-gradient(135deg,#7c3aed,#c026d3)",borderColor:"#c084fc",fontWeight:800}}>🔊 Start voice</button>}<button onClick={toggleMute} style={control}>{muted?"🔇":"🎙️"}</button>{type==="video"&&<button onClick={toggleCamera} style={control}>{camera?"📷":"🚫"}</button>}<button onClick={end} style={{...control,background:"#b91c1c",borderColor:"#ef4444"}}>☎</button></div>
   <div style={{padding:"0 20px 20px",textAlign:"center",fontSize:11,color:"#71717a"}}>GEE MVP voice uses your browser's speech audio. Live person-to-person calling still needs WebRTC/signaling.</div>
  </section></main>
 }
