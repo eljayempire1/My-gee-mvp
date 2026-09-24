@@ -17,7 +17,32 @@ const people: Person[] = [
   { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
 ];
 
-function loadDemoMessages(id: string): Message[] { try { const raw = localStorage.getItem(`gee-v2-messages-${id}`); return raw ? JSON.parse(raw) : []; } catch { return []; } }
+function isLegacyGenericReply(body: string) {
+  return /that sounds interesting\s*😊?\s*tell me more\.\s*i'?m listening\.?/i.test(body) || /tell me more\.\s*i'?m listening\.?/i.test(body);
+}
+
+function loadDemoMessages(id: string): Message[] {
+  try {
+    const raw = localStorage.getItem(`gee-v2-messages-${id}`);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    const cleaned = parsed.filter((m) => !(m?.sender_id === id && isLegacyGenericReply(String(m?.body || ""))));
+    if (cleaned.length !== parsed.length) localStorage.setItem(`gee-v2-messages-${id}`, JSON.stringify(cleaned));
+    return cleaned;
+  } catch { return []; }
+}
+
+function compassionateFallback(name: string, userText: string) {
+  const lower = userText.toLowerCase();
+  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ahh ${name} ❤️ I'm sorry you're feeling lonely. Come, talk to me for a bit — what's been making you feel this way? 🫂`;
+  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) return `Aww ${name === "My Gee" ? "my gee" : ""} ❤️ I'm sorry you're having a rough time. You don't have to brush it off with me — what happened? 🫂`;
+  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Yesss 😄❤️ I love hearing that energy from you. Come on, tell me what happened!`;
+  return `I'm listening, and I want to understand you properly. ❤️ What part of that is weighing on you most?`;
+}
+
+function cleanAIReply(reply: string, name: string, userText: string) {
+  return isLegacyGenericReply(reply) ? compassionateFallback(name, userText) : reply;
+}
 
 export default function Messages() {
   const [userId, setUserId] = useState("");
@@ -76,7 +101,8 @@ export default function Messages() {
       const mine: Message = { id: `u-${Date.now()}`, connection_id: person.id, sender_id: userId || "guest", body, created_at: new Date().toISOString() };
       const next = [...messages, mine]; setMessages(next); localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(next)); setReplying(true);
       try {
-        const reply = await getAIReply(person.display_name, next);
+        const rawReply = await getAIReply(person.display_name, next);
+        const reply = cleanAIReply(rawReply, person.display_name, body);
         setMessages((prev) => { const updated = [...prev, { id: `g-${Date.now()}`, connection_id: person.id, sender_id: person.id, body: reply, created_at: new Date().toISOString() }]; localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(updated)); return updated; });
       } catch { setNotice(`${person.display_name} is having trouble connecting. Try again in a moment.`); } finally { setReplying(false); }
       return;
