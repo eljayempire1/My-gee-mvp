@@ -11,7 +11,7 @@ export default function CallPage(){
  const [status,setStatus]=useState("Starting call…"); const [seconds,setSeconds]=useState(0); const [muted,setMuted]=useState(false); const [camera,setCamera]=useState(type==="video"); const [error,setError]=useState(""); const [voiceOn,setVoiceOn]=useState(false); const [listening,setListening]=useState(false);
 
  function speak(text:string,onDone?:()=>void){
-  if(typeof window==="undefined"||!("speechSynthesis" in window)){setError("Voice audio is not supported in this browser.");onDone?.();return;}
+  if(typeof window==="undefined"||!("speechSynthesis" in window)){setError("Voice audio is not supported in this browser.");return;}
   const synth=window.speechSynthesis;
   synth.cancel();
   synth.resume();
@@ -25,7 +25,7 @@ export default function CallPage(){
   pickVoice();
   if(synth.getVoices().length===0) synth.addEventListener("voiceschanged",pickVoice,{once:true});
   u.onend=()=>{speakingRef.current=false;onDone?.()};
-  u.onerror=()=>{speakingRef.current=false;setVoiceOn(false);setError("Voice audio could not start. Tap Start voice again.");onDone?.()};
+  u.onerror=()=>{speakingRef.current=false;setVoiceOn(false);setError("Voice audio could not start. Tap Start voice again.");};
   synth.speak(u);
  }
 
@@ -48,7 +48,7 @@ export default function CallPage(){
   if(startingVoiceRef.current||voiceOn)return;
   startingVoiceRef.current=true; setVoiceOn(true); setError(""); setStatus("Connected");
   const intro=`Hi, I'm ${name}. I'm here with you. You can talk to me naturally. What's on your mind?`;
-  speak(intro,()=>{startingVoiceRef.current=false;if(aliveRef.current&&speakingRef.current===false&&voiceOn)beginListening()});
+  speak(intro,()=>{startingVoiceRef.current=false;if(aliveRef.current)beginListening()});
  }
 
  useEffect(()=>{aliveRef.current=true; const start=async()=>{try{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==="video"});if(!aliveRef.current)return;streamRef.current=stream;if(videoRef.current&&type==="video"){videoRef.current.srcObject=stream;await videoRef.current.play().catch(()=>{})}setStatus("Connected");}catch(e){console.error(e);setError("Microphone/camera permission is needed to start the call.");setStatus("Call not started");}};start();return()=>{aliveRef.current=false;recognitionRef.current?.stop();streamRef.current?.getTracks().forEach(t=>t.stop());if(typeof window!=="undefined"&&"speechSynthesis" in window)window.speechSynthesis.cancel()}},[type]);
