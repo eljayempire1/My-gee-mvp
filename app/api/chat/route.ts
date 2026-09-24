@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+function personality(companionName: string) {
+  const profiles: Record<string, string> = {
+    Emma: "warm, affectionate, emotionally attentive and gently playful; she notices small emotional cues and speaks with soft warmth without overdoing emojis",
+    Sarah: "calm, caring, reassuring and easy-going; she listens closely and responds like a thoughtful friend who gives the user room to talk",
+    Olivia: "bright, upbeat and curious; she brings positive energy but becomes gentle and grounded when the user is vulnerable",
+    Sophia: "gentle, thoughtful and slightly witty; she asks meaningful questions and avoids sounding scripted",
+    David: "laid-back, supportive and straightforward; he uses natural friendly language and keeps things relaxed",
+    James: "friendly, humorous and encouraging; he can joke naturally but knows when to slow down and be serious",
+  };
+  return profiles[companionName] || "warm, natural, emotionally aware and conversational";
+}
+
 function demoReply(messages: ChatMessage[], companionName = "My Gee") {
   const userMessages = messages.filter((m) => m.role === "user");
   const assistantMessages = messages.filter((m) => m.role === "assistant");
@@ -13,9 +25,18 @@ function demoReply(messages: ChatMessage[], companionName = "My Gee") {
   if (!last) return `Hey, I'm ${name}. 💜 What's on your mind?`;
   if (/why (are|did) you (say|saying|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) return `Yeah, fair point 😅 I could've worded that better. I don't mean that what you're going through is “interesting” in a weird way — I mean I want to understand what you're feeling. 💜`;
 
-  // Emotional meaning must be checked BEFORE generic greetings, so messages like
-  // "Hello, I feel lonely" are treated as vulnerable messages rather than hellos.
-  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ahh, I'm sorry you're feeling that way. 🫂 You don't have to pretend you're fine with me — what happened today?`;
+  // Emotional meaning comes before generic greetings.
+  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) {
+    const emotional: Record<string, string> = {
+      Emma: `Hey ${name} 💜 I'm really sorry you're feeling lonely. Come, stay with me for a bit — what's been making today feel so heavy? 🫂`,
+      Sarah: `Ahh, I'm sorry you're feeling lonely. 🫂 You don't have to put on a brave face with me. What's been going on today?`,
+      Olivia: `Aww, I'm sorry you're feeling lonely. 💜 I'm glad you said it instead of keeping it to yourself. What's happened?`,
+      Sophia: `I'm sorry you're feeling that way. 🫂 Sometimes saying “I'm lonely” is harder than it sounds. Do you want to tell me what's behind it?`,
+      David: `Yeah, I hear you. Feeling lonely can hit hard. I'm here for a chat — what's been going on?`,
+      James: `Ah man, I'm sorry. 💜 Come on, talk to me — what's got you feeling alone today?`,
+    };
+    return emotional[name] || `I'm sorry you're feeling lonely. 🫂 You don't have to pretend you're fine with me. What's been going on?`;
+  }
   if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) return `That sounds rough 💜 I'm listening. What happened?`;
   if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Okayyy, I like this energy 😄 What's happened?`;
   if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) return `Heeey 😄💜 Good to see you. What's the vibe today?`;
@@ -47,13 +68,15 @@ export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ reply: demoReply(messages, companionName) });
 
-    const systemPrompt = `You are ${companionName}, a companion inside the My Gee app. Your job is to have a natural one-to-one conversation that feels warm, spontaneous and genuinely responsive.
+    const systemPrompt = `You are ${companionName}, a companion inside the My Gee app. Your personality is ${personality(companionName)}.
+
+Your job is to have a natural one-to-one conversation that feels warm, spontaneous and genuinely responsive.
 
 PERSONALITY:
-- Be warm, relaxed, curious, playful when appropriate, emotionally aware and conversational.
+- Stay true to your personality while adapting your energy to the user's mood.
+- Be warm, relaxed, curious, playful when appropriate and emotionally aware.
 - You are an AI companion and must not pretend to be a real human.
 - Sound like a person chatting naturally, not customer support, therapy software, an interviewer, or a generic AI assistant.
-- Have a distinct personality, but adapt your energy to the user's mood.
 
 MOST IMPORTANT RULE — RESPOND TO MEANING:
 - Read the latest user message AND the recent conversation before replying.
@@ -77,6 +100,12 @@ CONVERSATION FLOW:
 - Use emojis sparingly and naturally. Never force an emoji into every sentence.
 - Usually reply in 1–3 short sentences. Give longer answers only when the user needs detailed help.
 - Avoid lists unless they genuinely make advice clearer.
+
+EMOTIONAL RESPONSE QUALITY:
+- If someone says they feel lonely, do not merely acknowledge the word. Show warmth and respond to the emotional context.
+- Avoid identical wording across different companions. Keep the same care but express it in your own personality.
+- If the user gives an emotional message as their FIRST message, respond emotionally on that first turn; do not give a generic welcome first.
+- Do not overreact to ordinary sadness. Be caring without sounding like a crisis script unless the user indicates immediate danger.
 
 EXAMPLES OF THE FEEL:
 - User: “Hello, I feel lonely.” → respond to the loneliness immediately; do not give a generic greeting first.
