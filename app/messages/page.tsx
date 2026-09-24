@@ -15,6 +15,7 @@ const people: Person[] = [
   { id: "demo-sophia", display_name: "Sophia", city: "London, UK", avatar_letter: "S" },
   { id: "demo-david", display_name: "David", city: "London, UK", avatar_letter: "D" },
   { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
+  { id: "demo-elijah", display_name: "Elijah", city: "London, UK", avatar_letter: "E" },
 ];
 
 function isLegacyGenericReply(body: string) {
@@ -74,7 +75,11 @@ export default function Messages() {
       if (!mounted) return;
       if (user) setUserId(user.id); else setNotice("Demo mode — sign in when you want private connections.");
       const { data } = await supabase.rpc("accepted_connections");
-      if (data?.length) setConnections((data as any[]).map((p) => ({ id: p.id, display_name: p.display_name || "Friend", city: p.city || "London, UK", avatar_letter: (p.display_name || "G").slice(0, 1).toUpperCase() })));
+      if (data?.length) {
+        const loaded = (data as any[]).map((p) => ({ id: p.id, display_name: p.display_name || "Friend", city: p.city || "London, UK", avatar_letter: (p.display_name || "G").slice(0, 1).toUpperCase() }));
+        const hasElijah = loaded.some((p) => p.id === "demo-elijah" || p.display_name.trim().toLowerCase() === "elijah");
+        setConnections(hasElijah ? loaded : [...loaded, people.find((p) => p.id === "demo-elijah")!]);
+      }
       if (mounted) setLoading(false);
     })();
     return () => { mounted = false; };
@@ -125,7 +130,7 @@ export default function Messages() {
       {person && <section className="gee-chat">
         <header className="chat-head"><button className="mobile-menu" onClick={() => setMobileFriends(true)}>☰</button><div className="person"><div className="avatar">{person.avatar_letter}</div><div><b>{person.display_name}</b><small className="online">● Online • {person.city}</small></div></div><div className="chat-actions"><a href={`/call?type=voice&name=${encodeURIComponent(person.display_name)}`}>📞</a><a href={`/call?type=video&name=${encodeURIComponent(person.display_name)}`}>🎥</a></div></header>
         <div className="chat-body">
-          {!visible.length && <div className="empty">💜<br /><b>You're connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
+          {!visible.length && <div className="empty">💜<br /><b>You’re connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
           {visible.map((m) => <div key={m.id} className={`row ${m.sender_id === userId || m.sender_id === "guest" ? "mine" : "theirs"}`}><div className="bubble">{m.body}<div className="time">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div></div>)}
           {replying && <div className="typing">{person.display_name} is thinking… 💜</div>}
         </div>
