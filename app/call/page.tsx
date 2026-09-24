@@ -1,14 +1,16 @@
 "use client";
 import { useEffect,useRef,useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 type SpeechRecognitionLike = { lang:string; continuous?:boolean; interimResults?:boolean; start:()=>void; stop:()=>void; onresult:((event:any)=>void)|null; onend:(()=>void)|null; onerror?:((event:any)=>void)|null };
 declare global { interface Window { webkitSpeechRecognition?:new()=>SpeechRecognitionLike; SpeechRecognition?:new()=>SpeechRecognitionLike } }
 
 export default function CallPage(){
- const params=useSearchParams(); const type=params.get("type")==="video"?"video":"voice"; const name=params.get("name")||"Gee friend";
+ const [type,setType]=useState<"voice"|"video">("voice");
+ const [name,setName]=useState("Gee friend");
  const videoRef=useRef<HTMLVideoElement>(null); const streamRef=useRef<MediaStream|null>(null); const recognitionRef=useRef<SpeechRecognitionLike|null>(null); const audioRef=useRef<HTMLAudioElement|null>(null); const aliveRef=useRef(true); const startingVoiceRef=useRef(false);
- const [status,setStatus]=useState("Starting call…"); const [seconds,setSeconds]=useState(0); const [muted,setMuted]=useState(false); const [camera,setCamera]=useState(type==="video"); const [error,setError]=useState(""); const [voiceOn,setVoiceOn]=useState(false); const [listening,setListening]=useState(false);
+ const [status,setStatus]=useState("Starting call…"); const [seconds,setSeconds]=useState(0); const [muted,setMuted]=useState(false); const [camera,setCamera]=useState(false); const [error,setError]=useState(""); const [voiceOn,setVoiceOn]=useState(false); const [listening,setListening]=useState(false);
+
+ useEffect(()=>{const params=new URLSearchParams(window.location.search);const nextType=params.get("type")==="video"?"video":"voice";setType(nextType);setName(params.get("name")||"Gee friend");setCamera(nextType==="video")},[]);
 
  async function playVoice(text:string){
   if(!aliveRef.current)return false;
