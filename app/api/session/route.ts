@@ -24,12 +24,8 @@ export async function POST(req: Request) {
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "OPENAI_API_KEY is not configured in Production." }, { status: 503 });
-    }
-    if (!sdp) {
-      return NextResponse.json({ error: "Missing WebRTC SDP offer." }, { status: 400 });
-    }
+    if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured in Production." }, { status: 503 });
+    if (!sdp) return NextResponse.json({ error: "Missing WebRTC SDP offer." }, { status: 400 });
 
     const personality = personalityInstructions[requestedPersonality] || personalityInstructions.friendly;
     const session = {
@@ -38,24 +34,28 @@ export async function POST(req: Request) {
       output_modalities: ["audio"],
       audio: {
         input: {
-          turn_detection: { type: "semantic_vad" },
+          turn_detection: {
+            type: "server_vad",
+            create_response: true,
+            interrupt_response: true,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 650,
+            threshold: 0.45,
+          },
+          transcription: { model: "gpt-4o-mini-transcribe", language: "en" },
         },
-        output: {
-          voice: "marin",
-        },
+        output: { voice: "marin" },
       },
-      instructions: `${personality}\n\nConversation rules:\n- Respond to the meaning of the user's latest words, not isolated keywords.\n- Do not repeat the same sentence or canned introduction.\n- Do not keep asking "what's on your mind?" when the user has already told you.\n- Ask at most one natural follow-up when useful.\n- Keep most spoken replies to 1–3 natural sentences.\n- Remember the conversation during this call.\n- You are an AI companion; never pretend to be human.\n- Never encourage emotional dependency.\n- If the user indicates immediate danger or self-harm, respond with empathy and encourage immediate real-world help.`,
+      instructions: `${personality}\n\nConversation rules:\n- This is a real two-way voice conversation. Always respond to what the user actually says.\n- Do not repeat a canned greeting after the conversation has started.\n- Never answer with only the same sentence shown on the screen.\n- Do not keep asking "what's on your mind?" when the user has already told you.\n- Ask at most one natural follow-up when useful.\n- Keep most spoken replies to 1–3 natural sentences, but give enough detail to feel like a real conversation.\n- Remember earlier turns during this call and refer back to them naturally.\n- You are an AI companion; never pretend to be human.\n- Never encourage emotional dependency.\n- If the user indicates immediate danger or self-harm, respond with empathy and encourage immediate real-world help.`,
     };
 
     const form = new FormData();
-    form.set("sdp", sdp);
-    form.set("session", JSON.stringify(session));
+    form.append("sdp", new Blob([sdp], { type: "application/sdp" }), "offer.sdp");
+    form.append("session", new Blob([JSON.stringify(session)], { type: "application/json" }), "session.json");
 
     const response = await fetch("https://api.openai.com/v1/realtime/calls", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${apiKey}` },
       body: form,
     });
 
@@ -68,12 +68,9 @@ export async function POST(req: Request) {
       });
     }
 
-    return new NextResponse(text, {
-      status: 200,
-      headers: { "Content-Type": "application/sdp" },
-    });
+    return new NextResponse(text, { status: 200, headers: { "Content-Type": "application/sdp" } });
   } catch (error) {
     console.error("Realtime session route error:", error);
-    return NextResponse.json({ error: "Could not start the GEE voice session." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start the GEE voice session." }, { status: 500 });
   }
 }
