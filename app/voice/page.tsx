@@ -92,7 +92,7 @@ export default function Voice() {
       setStatus("Listening — your turn");
       return;
     }
-    if (type === "error") {
+    if (type === "type.error" || type === "error") {
       const message = event.error?.message || "The voice service returned an error.";
       console.error("GEE realtime error:", event);
       setError(message);
@@ -171,22 +171,20 @@ export default function Voice() {
       if (!sdp) throw new Error("Could not create the voice connection.");
       const response = await fetch("/api/session", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sdp, personality }),
+        headers: { "Content-Type": "application/sdp" },
+        body: sdp,
       });
-      const text = await response.text();
+      const answerSdp = await response.text();
       if (!response.ok) {
         let message = "Voice service could not start.";
         try {
-          const data = JSON.parse(text);
+          const data = JSON.parse(answerSdp);
           message = data?.error?.message || data?.error || message;
         } catch {}
         throw new Error(message);
       }
-      const session = JSON.parse(text) as { transport?: { sdp?: string } };
-      const answer = session.transport?.sdp;
-      if (!answer) throw new Error("GEE connected without an audio answer.");
-      await peer.setRemoteDescription({ type: "answer", sdp: answer });
+      if (!answerSdp.trim()) throw new Error("GEE connected without an audio answer.");
+      await peer.setRemoteDescription({ type: "answer", sdp: answerSdp });
       setConnected(true);
       setStatus("Connected — speak naturally");
       setReply("I'm listening. Say anything to me.");
