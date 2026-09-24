@@ -6,24 +6,44 @@ import Nav from "../components/Nav";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+const languageOptions = [
+  { id: "english", label: "🇬🇧 English" },
+  { id: "casual", label: "😎 English + Slang" },
+  { id: "pidgin", label: "🇳🇬 Naija Pidgin" },
+  { id: "naija_mix", label: "🇳🇬 Naija Mix" },
+  { id: "yoruba", label: "🟢 Yoruba" },
+  { id: "igbo", label: "🔵 Igbo" },
+  { id: "hausa", label: "🟤 Hausa" },
+  { id: "spanish", label: "🇪🇸 Spanish" },
+  { id: "french", label: "🇫🇷 French" },
+];
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: "Hey, I'm your Gee. 💜 What's on your mind today?" }]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [languageStyle, setLanguageStyle] = useState("english");
+
   async function sendMessage(value?: string) {
     const message = (value ?? text).trim();
     if (!message || busy) return;
     setText("");
     const updated = [...messages, { role: "user" as const, content: message }]; setMessages(updated); setBusy(true);
-    try { const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: updated }) }); const data = await response.json(); setMessages([...updated, { role: "assistant", content: data.reply || "I'm here with you. Tell me what's going on." }]); }
+    try { const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: updated, languageStyle }) }); const data = await response.json(); setMessages([...updated, { role: "assistant", content: data.reply || "I'm here with you. Tell me what's going on." }]); }
     catch { setMessages([...updated, { role: "assistant", content: "I'm having trouble connecting right now. Please try again." }]); }
     finally { setBusy(false); }
   }
+  const selectedLanguage = languageOptions.find((x) => x.id === languageStyle)?.label || "🇬🇧 English";
   const quick = ["☀️ How was your day?", "💪 I need motivation", "❤️ I feel lonely", "👥 I want to meet people", "🤔 Give me advice", "😴 Help me sleep"];
   return <><Nav /><main style={{ minHeight: "calc(100vh - 55px)", padding: "18px", fontFamily: "Arial, sans-serif" }}><div style={{ maxWidth: 820, margin: "0 auto", minHeight: "88vh", display: "flex", flexDirection: "column" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottom: "1px solid #27272a", paddingBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 52, height: 52, borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7c3aed,#ec4899)", fontWeight: 900, fontSize: 22 }}>G</div><div><h2 style={{ margin: 0 }}>My Gee <span style={{ color: "#22c55e", fontSize: 12 }}>● online</span></h2><span style={{ color: "#a1a1aa" }}>Your AI companion</span></div></div>
       <Link href="/voice" style={{ textDecoration: "none", background: "linear-gradient(135deg,#7c3aed,#c026d3)", color: "white", borderRadius: 14, padding: "11px 15px", fontWeight: 800 }}>📞 Call Gee</Link>
+    </div>
+    <div style={{ marginTop: 14, padding: 14, borderRadius: 16, background: "#121016", border: "1px solid #3b3340" }}>
+      <div style={{ color: "#c4b5fd", fontSize: 12, fontWeight: 800, marginBottom: 8, letterSpacing: .5 }}>🗣️ GEE LANGUAGE & SLANG</div>
+      <select value={languageStyle} onChange={(e) => setLanguageStyle(e.target.value)} style={{ width: "100%", background: "#09090b", color: "white", border: "1px solid #4b3b55", borderRadius: 12, padding: 13, fontSize: 15 }}>{languageOptions.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+      <div style={{ color: "#a1a1aa", fontSize: 12, marginTop: 7 }}>Selected: {selectedLanguage}. Gee will keep this style during the conversation.</div>
     </div>
     <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 6px" }}>{["💜 My Gee", "🌙 Calm", "💪 Motivator", "😂 Fun", "🧠 Wise"].map(x=><button key={x} style={{ whiteSpace:"nowrap", border:"1px solid #3b3340", background:"#151219", color:"#f3e8ff", borderRadius:999, padding:"9px 13px" }}>{x}</button>)}</div>
     <div style={{ flex: 1, padding: "18px 0", display: "flex", flexDirection: "column", gap: 12 }}>{messages.map((m,i)=><div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "82%", padding: "14px 17px", borderRadius: 20, background: m.role === "user" ? "linear-gradient(135deg,#4f00c8,#7c3aed)" : "#18181b", border: m.role === "assistant" ? "1px solid #3a3340" : "none", lineHeight: 1.55 }}>{m.content}<div style={{ marginTop:7, opacity:.65, fontSize:12 }}>{m.role === "assistant" ? "💜" : "✓✓"}</div></div>)}{busy && <div style={{ color: "#c4b5fd" }}>Gee is thinking… ✨</div>}</div>
