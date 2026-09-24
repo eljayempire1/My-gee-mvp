@@ -169,9 +169,9 @@ export default function Voice() {
 
       const sdp = peer.localDescription?.sdp;
       if (!sdp) throw new Error("Could not create the voice connection.");
-      const response = await fetch("/api/session", {
+      const response = await fetch(`/api/session?personality=${encodeURIComponent(personality)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/sdp" },
+        headers: { "Content-Type": "application/sdp", Accept: "application/sdp" },
         body: sdp,
       });
       const answerSdp = await response.text();
@@ -221,7 +221,7 @@ export default function Voice() {
       <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
         <Link href="/chat" style={{ display: "inline-block", color: "#d8b4fe", textDecoration: "none", marginBottom: 16 }}>← Back to chat</Link>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 999, background: "#15131a", border: "1px solid #3b3340", color: "#c4b5fd", fontSize: 13 }}><span style={{ color: connected ? "#22c55e" : "#a1a1aa" }}>●</span>{status}</div>
-        <div style={{ width: 150, height: 150, borderRadius: "50%", margin: "26px auto 18px", display: "grid", placeItems: "center", fontSize: 58, background: "linear-gradient(135deg,#581c87,#db2777)", boxShadow: listening ? "0 0 70px #c026d388" : "0 0 45px #7c3aed66" }}>💜</div>
+        <div style={{ width: 150, height: 150, borderRadius: "50%", margin: "26px auto 18px", display: "grid", placeItems: "center", fontSize: 58, background: "linear-gradient(135deg,#581c87,#db2777)", boxShadow: listening ? "0 0 70px #c026f388" : "0 0 45px #7c3aed66" }}>💜</div>
         <h1 style={{ fontSize: 42, margin: "0 0 7px" }}>Call My Gee</h1>
         <p style={{ color: "#a1a1aa", fontSize: 17 }}>A real-time voice conversation — not a repeated message.</p>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "18px 2px", marginBottom: 8 }}>
