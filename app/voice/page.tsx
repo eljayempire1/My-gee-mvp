@@ -33,13 +33,14 @@ export default function Voice() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   async function speak(text: string) {
+    // Primary voice: server-side OpenAI TTS. The API key never reaches the browser.
     try {
       const r = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-      if (!r.ok) throw new Error("TTS failed");
+      if (!r.ok) throw new Error(`TTS failed: ${r.status}`);
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
@@ -52,7 +53,26 @@ export default function Voice() {
       });
       return true;
     } catch (e) {
-      console.error(e);
+      console.error("OpenAI voice unavailable:", e);
+    }
+
+    // Fallback: Android/Chrome's built-in speech engine, so the call still speaks
+    // while the OpenAI voice service is being configured or unavailable.
+    try {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+      window.speechSynthesis.cancel();
+      await new Promise<void>((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-GB";
+        utterance.rate = 0.98;
+        utterance.pitch = 1;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        window.speechSynthesis.speak(utterance);
+      });
+      return true;
+    } catch (e) {
+      console.error("Browser voice unavailable:", e);
       return false;
     }
   }
@@ -64,6 +84,7 @@ export default function Voice() {
       audioRef.current.pause();
       audioRef.current.src = "";
     }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     setListening(false);
     setBusy(false);
   }
@@ -89,13 +110,13 @@ export default function Voice() {
       const answerText = data.reply || "I'm here with you. Tell me more.";
       setReply(answerText);
       const played = await speak(answerText);
-      if (!played) setError("I couldn't play GEE's voice. Check your phone media volume and the voice service.");
+      if (!played) setError("I couldn't play GEE's voice. Please check your phone media volume.");
     } catch (e) {
       console.error(e);
       const fallback = "I'm still here with you. Please try saying that again.";
       setReply(fallback);
       const played = await speak(fallback);
-      if (!played) setError("GEE couldn't connect to the voice service right now.");
+      if (!played) setError("GEE couldn't play a voice reply right now.");
     } finally {
       setBusy(false);
     }
