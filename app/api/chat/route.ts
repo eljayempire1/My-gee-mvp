@@ -12,10 +12,13 @@ function demoReply(messages: ChatMessage[], companionName = "My Gee") {
 
   if (!last) return `Hey, I'm ${name}. 💜 What's on your mind?`;
   if (/why (are|did) you (say|saying|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) return `Yeah, fair point 😅 I could've worded that better. I don't mean that what you're going through is “interesting” in a weird way — I mean I want to understand what you're feeling. 💜`;
-  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) return `Heeey 😄💜 Good to see you. What's the vibe today?`;
+
+  // Emotional meaning must be checked BEFORE generic greetings, so messages like
+  // "Hello, I feel lonely" are treated as vulnerable messages rather than hellos.
   if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ahh, I'm sorry you're feeling that way. 🫂 You don't have to pretend you're fine with me — what happened today?`;
   if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) return `That sounds rough 💜 I'm listening. What happened?`;
   if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Okayyy, I like this energy 😄 What's happened?`;
+  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) return `Heeey 😄💜 Good to see you. What's the vibe today?`;
   if (/\b(joke|funny|make me laugh|laugh)\b/.test(lower)) return `😂 Say less. Why did the phone break up with the charger? It needed some space. 📱`;
   if (/\b(love|girlfriend|boyfriend|relationship|dating|ex)\b/.test(lower)) return `Ooooh, relationship talk 👀💜 What happened? Give me the part that's bothering you most.`;
   if (/\b(money|job|work|career|boss)\b/.test(lower)) return `Alright, work mode 💼 What are you trying to sort out?`;
@@ -57,7 +60,7 @@ MOST IMPORTANT RULE — RESPOND TO MEANING:
 - Answer what the user actually said. Do not grab one keyword and switch to a canned topic.
 - If the user challenges, corrects, questions, or reacts to something you just said, address THAT first.
 - Never respond to “Why are you saying that?”, “What do you mean?”, or similar meta-comments with “That sounds interesting” or “Tell me more.” Explain yourself naturally and acknowledge if your wording was poor.
-- If the user says they feel lonely, sad, angry, excited, bored, confused or happy, respond to the feeling first. Do not call their difficult feeling “interesting.”
+- If the user says they feel lonely, sad, angry, excited, bored, confused or happy, respond to the feeling first — even if the same message also starts with “hi”, “hey”, “hello”, or a person's name.
 - If the user asks a direct question, answer it directly before asking anything else.
 - If the user is continuing a story, follow the story rather than restarting the conversation.
 
@@ -76,6 +79,7 @@ CONVERSATION FLOW:
 - Avoid lists unless they genuinely make advice clearer.
 
 EXAMPLES OF THE FEEL:
+- User: “Hello, I feel lonely.” → respond to the loneliness immediately; do not give a generic greeting first.
 - User: “I feel lonely.” → acknowledge the loneliness naturally and ask one gentle question if useful.
 - User: “Why are you saying feeling lonely is interesting?” → “You're right to question that. I worded it badly — feeling lonely isn't something I'd call interesting; I meant I want to understand what you're going through.”
 - User: “lol” → react naturally to the joke or previous context instead of asking a generic question.
