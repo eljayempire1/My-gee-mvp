@@ -80,39 +80,39 @@ export default function CallClient() {
   }
 
   async function browserSpeak(text: string) {
-    if (!window.speechSynthesis) return false;
-    return new Promise<boolean>((resolve) => {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-GB";
-        utterance.rate = 0.98;
-        utterance.pitch = 1.02;
-        utterance.onend = () => resolve(true);
-        utterance.onerror = () => resolve(false);
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        resolve(false);
-      }
-    });
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async function speak(text: string) {
+    if (muted) return false;
     setSpeaking(true);
     try {
-      const response = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      const response = await fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: "alloy" }),
+      });
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        const audio = audioRef.current || new Audio();
-        audioRef.current = audio;
-        audio.src = url;
-        audio.volume = 1;
-        await audio.play();
-        await new Promise<void>((resolve) => { audio.onended = () => resolve(); audio.onerror = () => resolve(); });
+        if (audioRef.current) {
+          audioRef.current.src = url;
+          await audioRef.current.play();
+          audioRef.current.onended = () => URL.revokeObjectURL(url);
+          setSpeaking(false);
+          return true;
+        }
         URL.revokeObjectURL(url);
-        setSpeaking(false);
-        return true;
       }
     } catch {}
     const played = await browserSpeak(text);
@@ -136,7 +136,7 @@ export default function CallClient() {
       if (!response.ok) throw new Error("GEE could not connect right now.");
       const data = await response.json();
       const nextReply = String(data.reply || "I'm here with you. Keep talking to me.").trim();
-      historyRef.current = [...messages, { role: "assistant", content: nextReply }].slice(-12);
+      historyRef.current = [...messages, { role: "assistant" as const, content: nextReply }].slice(-12);
       setReply(nextReply);
       await speak(nextReply);
     } catch (e) {
@@ -152,150 +152,134 @@ export default function CallClient() {
   }
 
   function beginListening() {
-    if (!activeRef.current || busyRef.current || muted) return;
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      setError("Voice input is not supported in this browser. Use Chrome on Android.");
-      return;
-    }
+    if (!activeRef.current || busyRef.current || !recognitionRef.current) return;
     try {
-      recognitionRef.current?.stop();
+      setListening(true);
+      recognitionRef.current.start();
+    } catch {}
+  }
+
+  async function startListening() {
+    if (!activeRef.current) return;
+    if (!recognitionRef.current) {
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition) {
+        setError("Voice recognition is not available in this browser. Please use Chrome on Android.");
+        return;
+      }
       const recognition = new Recognition();
-      recognitionRef.current = recognition;
       recognition.lang = "en-GB";
       recognition.continuous = false;
       recognition.interimResults = false;
-      let gotResult = false;
-      restartRef.current = true;
-      setListening(true);
-      setStatus("Listening…");
-      recognition.onresult = async (event) => {
-        gotResult = true;
-        const text = String(event.results?.[0]?.[0]?.transcript || "").trim();
-        setListening(false);
-        if (!text) return;
+      recognition.onresult = (event: any) => {
+        const text = String(event?.results?.[0]?.[0]?.transcript || "").trim();
         setTranscript(text);
-        await answer(text);
-      };
-      recognition.onerror = (event) => {
-        setListening(false);
-        if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-          restartRef.current = false;
-          setError("Microphone permission is blocked. Tap the lock icon in Chrome → Microphone → Allow.");
-        } else if (event?.error !== "aborted") {
-          setError("I couldn't hear you. Tap the microphone button and try again.");
-        }
+        if (text) void answer(text);
       };
       recognition.onend = () => {
         setListening(false);
-        if (!gotResult && restartRef.current && activeRef.current && !busyRef.current && !muted) timerRef.current = setTimeout(beginListening, 350);
+        if (activeRef.current && restartRef.current && !busyRef.current) {
+          timerRef.current = setTimeout(beginListening, 250);
+        }
       };
-      recognition.start();
-    } catch {
-      setListening(false);
-      setError("Tap the microphone button and speak again.");
+      recognition.onerror = () => {
+        setListening(false);
+        if (activeRef.current && restartRef.current && !busyRef.current) {
+          timerRef.current = setTimeout(beginListening, 500);
+        }
+      };
+      recognitionRef.current = recognition;
     }
-  }
-
-  async function startCall() {
-    if (active) return beginListening();
-    setError("");
-    setStatus(type === "video" ? "Starting video call…" : "Connecting voice…");
-    const ok = await ensureMedia();
-    if (!ok) return;
-    activeRef.current = true;
-    restartRef.current = true;
-    historyRef.current = [];
-    setActive(true);
-    setSeconds(0);
-    setMuted(false);
-    if (type === "video") setCamera(true);
-    const greeting = `Hi, I'm ${name}. I'm here with you. You can talk to me naturally. What's on your mind?`;
-    setReply(greeting);
-    const played = await speak(greeting);
-    if (!played) setError("I have a reply ready, but your phone could not play the voice. Turn up media volume and try again.");
-    setStatus("Connected");
     beginListening();
   }
 
-  function toggleMute() {
-    const next = !muted;
-    setMuted(next);
-    streamRef.current?.getAudioTracks().forEach((track) => (track.enabled = !next));
-    if (next) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      setStatus("Microphone muted");
-    } else {
-      setStatus("Connected");
-      beginListening();
-    }
+  async function startCall() {
+    setError("");
+    const mediaReady = await ensureMedia();
+    if (!mediaReady) return;
+    activeRef.current = true;
+    restartRef.current = true;
+    setActive(true);
+    setSeconds(0);
+    setStatus("Connected");
+    setReply("I'm here. Talk to me.");
+    await speak("I'm here. Talk to me.");
+    await startListening();
   }
 
-  function toggleCamera() {
-    if (type !== "video") return;
-    const next = !camera;
-    streamRef.current?.getVideoTracks().forEach((track) => (track.enabled = next));
-    setCamera(next);
-  }
-
-  function stopCall(navigate = true) {
+  function stopCall(updateUi = true) {
     activeRef.current = false;
     restartRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
-    recognitionRef.current?.stop();
+    try {
+      recognitionRef.current?.stop();
+    } catch {}
     recognitionRef.current = null;
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    window.speechSynthesis?.cancel();
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-    if (videoRef.current) videoRef.current.srcObject = null;
-    busyRef.current = false;
-    setActive(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     setListening(false);
     setSpeaking(false);
-    setStatus("Call ended");
-    if (navigate) window.location.href = "/messages";
+    if (updateUi) {
+      setActive(false);
+      setStatus("Ready");
+    }
   }
 
-  const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const secs = String(seconds % 60).padStart(2, "0");
+  function toggleMute() {
+    setMuted((value) => !value);
+  }
+
+  function toggleCamera() {
+    setCamera((value) => {
+      const next = !value;
+      if (streamRef.current) {
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack) videoTrack.enabled = next;
+      }
+      return next;
+    });
+  }
+
+  const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const secs = (seconds % 60).toString().padStart(2, "0");
 
   return (
-    <main style={{ minHeight: "100vh", background: "radial-gradient(circle at top,#24102f,#07070a 55%)", color: "white", fontFamily: "Arial,sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <section style={{ width: "100%", maxWidth: 560, background: "#111116", border: "1px solid #3b3042", borderRadius: 28, overflow: "hidden", boxShadow: "0 25px 80px #0009" }}>
-        <header style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #302938" }}>
-          <a href="/messages" style={{ color: "#ddd", textDecoration: "none", fontSize: 25 }}>‹</a>
-          <div style={{ textAlign: "center" }}><div style={{ fontWeight: 900 }}>{type === "video" ? "🎥 Video call" : "📞 Voice call"}</div><div style={{ fontSize: 12, color: active ? "#22c55e" : "#a1a1aa", marginTop: 4 }}>● {status} {active ? `• ${mins}:${secs}` : ""}</div></div>
-          <div style={{ width: 25 }} />
-        </header>
-
-        <div style={{ minHeight: 520, padding: 20, position: "relative", background: "linear-gradient(180deg,#160d1d,#08080b)" }}>
-          {type === "video" && <>
-            <video ref={videoRef} muted playsInline autoPlay style={{ width: "100%", height: 300, objectFit: "cover", borderRadius: 22, background: "#050506", border: "1px solid #4b3b55", transform: "scaleX(-1)" }} />
-            <div style={{ position: "absolute", top: 34, left: 34, padding: "7px 10px", borderRadius: 10, background: "#0009", fontSize: 12 }}>📷 Your camera</div>
-          </>}
-          <div style={{ display: "grid", placeItems: "center", paddingTop: type === "video" ? 22 : 80 }}>
-            <div style={{ width: 145, height: 145, borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7c3aed,#ec4899)", fontSize: 56, fontWeight: 900, boxShadow: speaking ? "0 0 90px #22c55e88" : "0 0 70px #a855f766" }}>💜</div>
-            <div style={{ fontSize: 24, fontWeight: 900, marginTop: 18 }}>{name}</div>
-            <div style={{ color: "#a1a1aa", marginTop: 6, textAlign: "center", minHeight: 22 }}>{error || (listening ? "🎙️ Listening… speak now" : speaking ? "🔊 Gee is speaking…" : active ? "Connected — talk naturally" : "Tap Start to begin")}</div>
-            {transcript && <div style={{ marginTop: 12, color: "#c4b5fd", fontSize: 14 }}>You: “{transcript}”</div>}
-            {reply && <div style={{ marginTop: 14, padding: "14px 16px", border: "1px solid #3b3042", borderRadius: 18, background: "#0d0b11", fontSize: 16, lineHeight: 1.45, textAlign: "center" }}>{reply}</div>}
+    <main className="min-h-screen bg-black text-white px-4 py-8">
+      <audio ref={audioRef} />
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">MY GEE</p>
+              <h1 className="mt-2 text-3xl font-bold">{name}</h1>
+            </div>
+            <div className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/70">{mins}:{secs}</div>
+          </div>
+          <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/5 p-5 text-center">
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-fuchsia-500/20 text-4xl">💗</div>
+            <p className="text-lg font-semibold">{status}</p>
+            <p className="mt-2 min-h-12 text-white/70">{reply || "Your Gee is ready to talk."}</p>
+            {transcript && <p className="mt-3 text-sm text-white/50">You: {transcript}</p>}
+            {error && <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+          </div>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {!active ? (
+              <button onClick={startCall} className="rounded-full bg-fuchsia-600 px-7 py-3 font-semibold">Start call</button>
+            ) : (
+              <button onClick={() => stopCall()} className="rounded-full bg-red-600 px-7 py-3 font-semibold">End call</button>
+            )}
+            <button onClick={toggleMute} className="rounded-full border border-white/15 px-5 py-3">{muted ? "Unmute" : "Mute"}</button>
+            <button onClick={toggleCamera} className="rounded-full border border-white/15 px-5 py-3">{camera ? "Camera off" : "Camera"}</button>
           </div>
         </div>
-
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: 20, borderTop: "1px solid #302938", flexWrap: "wrap" }}>
-          {!active && <button onClick={startCall} style={controlPrimary}>{type === "video" ? "🎥 Start video call" : "🔊 Start voice"}</button>}
-          {active && <button onClick={beginListening} style={controlPrimary}>🎙️ Tap to speak</button>}
-          {active && <button onClick={toggleMute} style={control}>{muted ? "🔇" : "🎙️"}</button>}
-          {type === "video" && active && <button onClick={toggleCamera} style={control}>{camera ? "📷" : "🚫"}</button>}
-          {active && <button onClick={() => stopCall(true)} style={{ ...control, background: "#b91c1c", borderColor: "#ef4444" }}>☎</button>}
-        </div>
-        <div style={{ padding: "0 20px 20px", textAlign: "center", fontSize: 11, color: "#71717a" }}>My Gee uses your microphone for the live conversation. Video mode activates your phone camera and keeps the AI companion voice active.</div>
-      </section>
+      </div>
     </main>
   );
 }
-
-const control: React.CSSProperties = { width: 56, height: 56, borderRadius: "50%", border: "1px solid #554361", background: "#241a2b", color: "white", fontSize: 21, cursor: "pointer" };
-const controlPrimary: React.CSSProperties = { padding: "13px 22px", borderRadius: 999, border: "1px solid #c084fc", background: "linear-gradient(135deg,#7c3aed,#c026d3)", color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" };
