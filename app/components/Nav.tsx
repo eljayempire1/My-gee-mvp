@@ -25,6 +25,7 @@ export default function Nav() {
         {items.map(([label,href])=><Link key={href} href={href} style={{color:pathname===href?"#f0abfc":"#b4b0ba",textDecoration:"none",fontSize:13,fontWeight:750,whiteSpace:"nowrap",padding:"8px 9px",borderRadius:10,background:pathname===href?"#2a1232":"transparent"}}>{label}</Link>)}
       </div>
       <div style={{display:"flex",alignItems:"center",gap:6,position:"relative",flexShrink:0}}>
+        <Link href="/login" aria-label="Login" title="Login" style={{...navButton,textDecoration:"none",display:"grid",placeItems:"center",fontSize:16}}>↪</Link>
         {searchOpen && <div style={{position:"absolute",right:88,top:50,width:210,padding:8,background:"#151118",border:"1px solid #4b3155",borderRadius:14,boxShadow:"0 15px 45px #0009"}}>
           <input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search My Gee..." style={{width:"100%",boxSizing:"border-box",background:"#0c0b0e",color:"white",border:"1px solid #3a303e",borderRadius:10,padding:"10px 11px",outline:"none"}} />
           {query && matches.length>0 && <div style={{paddingTop:6}}>{matches.map(([label,href])=><Link key={href} href={href} onClick={()=>setSearchOpen(false)} style={{display:"block",padding:"8px 9px",color:"#f5d0fe",textDecoration:"none",borderRadius:8}}>{label}</Link>)}</div>}
