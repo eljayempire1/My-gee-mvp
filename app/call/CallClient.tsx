@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+type ChatMessage = { role: "user" | "assistant"; content: string };
 type RecognitionLike = {
   lang: string;
   continuous?: boolean;
@@ -42,7 +43,7 @@ export default function CallClient() {
   const busyRef = useRef(false);
   const restartRef = useRef(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  const historyRef = useRef<ChatMessage[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -127,7 +128,10 @@ export default function CallClient() {
     setStatus("Thinking…");
     setError("");
     try {
-      const messages = [...historyRef.current.slice(-10), { role: "user" as const, content: text }];
+      const messages: ChatMessage[] = [
+        ...historyRef.current.slice(-10),
+        { role: "user", content: text },
+      ];
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,7 +140,11 @@ export default function CallClient() {
       if (!response.ok) throw new Error("GEE could not connect right now.");
       const data = await response.json();
       const nextReply = String(data.reply || "I'm here with you. Keep talking to me.").trim();
-      historyRef.current = [...messages, { role: "assistant" as const, content: nextReply }].slice(-12);
+      const nextHistory: ChatMessage[] = [
+        ...messages,
+        { role: "assistant", content: nextReply },
+      ];
+      historyRef.current = nextHistory.slice(-12);
       setReply(nextReply);
       await speak(nextReply);
     } catch (e) {
