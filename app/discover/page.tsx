@@ -20,9 +20,18 @@ function normalizePeople(rows:Person[]){
 }
 
 export default function Discover(){
- const [people,setPeople]=useState<Person[]>([]); const [message,setMessage]=useState("Loading people..."); const [notice,setNotice]=useState(""); const [connecting,setConnecting]=useState(""); const [connected,setConnected]=useState<string[]>([]);
+ const [people,setPeople]=useState<Person[]>(demoPeople); const [message,setMessage]=useState("Loading people..."); const [notice,setNotice]=useState(""); const [connecting,setConnecting]=useState(""); const [connected,setConnected]=useState<string[]>([]);
  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem("gee-demo-connections")||"[]");if(Array.isArray(saved))setConnected(saved)}catch{} loadPeople()},[]);
- async function loadPeople(){const {data,error}=await supabase.rpc("discover_people",{limit_count:20});if(error||!data?.length){setPeople(demoPeople);setMessage("");return}const normalized=normalizePeople(data);const hasElijah=normalized.some(p=>(p.display_name||"").trim().toLowerCase()==="elijah obonogwu"||(p.id||"")==="demo-elijah");setPeople(hasElijah?normalized:[...normalized,demoPeople.find(p=>p.id==="demo-elijah")!]);setMessage("");}
+ async function loadPeople(){
+   let rows:Person[]=[];
+   try{const {data}=await supabase.rpc("discover_people",{limit_count:20});if(Array.isArray(data))rows=data;}catch{}
+   const normalized=normalizePeople(rows);
+   // Always keep the complete demo directory visible. Real Supabase members are added alongside it.
+   const byId=new Map<string,Person>();
+   [...demoPeople,...normalized].forEach(p=>byId.set(p.id,p));
+   setPeople(Array.from(byId.values()));
+   setMessage("");
+ }
  async function connect(person:Person){if(connecting)return;setConnecting(person.id);
    let user=null; try{const r=await supabase.auth.getUser();user=r.data.user;}catch{}
    let demoSession=false; try{demoSession=!!localStorage.getItem("gee-demo-session")}catch{}
