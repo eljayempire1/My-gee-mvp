@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Nav from "../components/Nav";
 
-type Person = { id: string; name: string; gender: "Woman" | "Man"; status: "Connected" | "Request"; note: string };
+type Person = {
+  id: string;
+  name: string;
+  gender: "Woman" | "Man";
+  status: "Connected" | "Request";
+  note: string;
+};
 
 const initial: Person[] = [
   { id: "demo-emma", name: "Emma", gender: "Woman", status: "Connected", note: "Music • Travel • Food" },
@@ -18,22 +24,39 @@ const initial: Person[] = [
 ];
 
 export default function Connections() {
-  const [people, setPeople] = useState(initial);
+  const [people, setPeople] = useState<Person[]>(initial);
   const [search, setSearch] = useState("");
-  const filtered = useMemo(() => people.filter((p) => `${p.name} ${p.note}`.toLowerCase().includes(search.toLowerCase())), [people, search]);
+  const filtered = useMemo(
+    () => people.filter((p) => `${p.name} ${p.note}`.toLowerCase().includes(search.toLowerCase())),
+    [people, search]
+  );
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("gee-demo-connections");
-      const ids = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(ids)) setPeople(initial.map(p => ({ ...p, status: ids.includes(p.id) ? "Connected" : p.status })));
-    } catch {}
+      const ids: unknown = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(ids)) {
+        setPeople(
+          initial.map((p): Person => ({
+            ...p,
+            status: ids.includes(p.id) ? "Connected" : p.status,
+          }))
+        );
+      }
+    } catch {
+      // Keep the default connection directory if local storage is unavailable.
+    }
   }, []);
 
   function toggleConnection(id: string) {
-    setPeople(prev => {
-      const next = prev.map(p => p.id === id ? { ...p, status: p.status === "Connected" ? "Request" : "Connected" } : p);
-      const connected = next.filter(p => p.status === "Connected").map(p => p.id);
+    setPeople((prev: Person[]): Person[] => {
+      const next: Person[] = prev.map((p): Person => ({
+        ...p,
+        status: p.id === id
+          ? (p.status === "Connected" ? "Request" : "Connected")
+          : p.status,
+      }));
+      const connected = next.filter((p) => p.status === "Connected").map((p) => p.id);
       localStorage.setItem("gee-demo-connections", JSON.stringify(connected));
       return next;
     });
