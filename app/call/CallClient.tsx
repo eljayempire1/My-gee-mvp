@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type RecognitionLike = {
@@ -228,9 +229,6 @@ export default function CallClient() {
     setReply("");
     setTranscript("");
 
-    // Voice calls do NOT wait for getUserMedia. Android Chrome's speech-recognition
-    // service requests microphone access itself. This keeps the call from getting
-    // stuck on Connecting when getUserMedia is unavailable.
     if (type === "video") {
       setStatus("Starting video call…");
       const ok = await ensureVideoMedia();
@@ -253,7 +251,7 @@ export default function CallClient() {
     if (activeRef.current) beginListening();
   }
 
-  function sendTyped(event: React.FormEvent) {
+  function sendTyped(event: FormEvent) {
     event.preventDefault();
     const value = typed.trim();
     if (!value || !activeRef.current) return;
@@ -340,18 +338,14 @@ export default function CallClient() {
           <button type="submit" disabled={!typed.trim()} style={{ border: 0, borderRadius: 22, padding: "0 17px", background: "linear-gradient(135deg,#7c3aed,#ec4899)", color: "#fff", fontWeight: 800 }}>Send</button>
         </form>}
 
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: 20, borderTop: "1px solid #302938", marginTop: 10, flexWrap: "wrap" }}>
-          {!active && <button onClick={startCall} style={controlPrimary}>{type === "video" ? "🎥 Start video call" : "🔊 Start voice"}</button>}
-          {active && <button onClick={beginListening} style={controlPrimary}>🎙️ Tap to speak</button>}
-          {active && <button onClick={toggleMute} style={control}>{muted ? "🔇" : "🎙️"}</button>}
-          {type === "video" && active && <button onClick={toggleCamera} style={control}>{camera ? "📷" : "🚫"}</button>}
-          {active && <button onClick={() => stopCall(true)} style={{ ...control, background: "#b91c1c", borderColor: "#ef4444" }}>☎</button>}
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: 20, borderTop: "1px solid #302938", flexWrap: "wrap" }}>
+          {!active ? <button onClick={startCall} style={{ border: 0, borderRadius: 18, padding: "14px 24px", background: "linear-gradient(135deg,#7c3aed,#ec4899)", color: "white", fontWeight: 900, fontSize: 16 }}>📞 Start call</button> : <>
+            <button onClick={toggleMute} style={{ border: 0, borderRadius: 18, padding: "14px 20px", background: muted ? "#ef4444" : "#2a2130", color: "white", fontWeight: 900 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button>
+            {type === "video" && <button onClick={toggleCamera} style={{ border: 0, borderRadius: 18, padding: "14px 20px", background: "#2a2130", color: "white", fontWeight: 900 }}>{camera ? "📷 Camera off" : "📷 Camera on"}</button>}
+            <button onClick={() => stopCall()} style={{ border: 0, borderRadius: 18, padding: "14px 20px", background: "#ef4444", color: "white", fontWeight: 900 }}>End call</button>
+          </>}
         </div>
-        <div style={{ padding: "0 20px 20px", textAlign: "center", fontSize: 11, color: "#71717a" }}>Voice mode uses your browser's live speech input and My Gee voice. Video mode also activates your phone camera.</div>
       </section>
     </main>
   );
 }
-
-const control: React.CSSProperties = { width: 56, height: 56, borderRadius: "50%", border: "1px solid #554361", background: "#241a2b", color: "white", fontSize: 21, cursor: "pointer" };
-const controlPrimary: React.CSSProperties = { padding: "13px 22px", borderRadius: 999, border: "1px solid #c084fc", background: "linear-gradient(135deg,#7c3aed,#c026d3)", color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" };
