@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Nav from "../components/Nav";
 import { supabase } from "../../lib/supabase";
@@ -54,7 +54,7 @@ function fallbackReply(name: string, text: string) {
   return `I'm listening, and I want to understand you properly. ❤️ What part of that is weighing on you most?`;
 }
 
-export default function Messages() {
+function MessagesContent() {
   const params = useSearchParams();
   const [userId, setUserId] = useState("");
   const [connections, setConnections] = useState<Person[]>(people);
@@ -244,5 +244,13 @@ export default function Messages() {
       </main>
       <style jsx global>{`*{box-sizing:border-box}.page{min-height:calc(100vh - 55px);padding:18px 10px 30px;background:linear-gradient(180deg,#07070a,#100914);color:#fff;font-family:Arial,sans-serif}.wrap{max-width:1120px;margin:auto}.top{display:flex;align-items:end;gap:10px;justify-content:space-between;flex-wrap:wrap}.eyebrow{color:#e879f9;font-weight:900;letter-spacing:2px;font-size:11px}.top h1{font-size:clamp(28px,6vw,42px);margin:5px 0}.top p{color:#a1a1aa;margin:0}.searchTop,.friends input{background:#111116;color:#fff;border:1px solid #39303f;border-radius:12px;padding:10px}.searchTop{width:130px}.layout{display:grid;grid-template-columns:260px 1fr;gap:14px;margin-top:18px}.friends,.chat{background:#0f0f13;border:1px solid #332a39;border-radius:20px;overflow:hidden}.friends{padding:12px}.friends>b{font-size:12px;color:#a1a1aa}.friends input{width:100%;margin:10px 0}.friend{width:100%;display:flex;align-items:center;gap:10px;border:1px solid transparent;background:#121216;color:#fff;border-radius:14px;padding:9px;margin:3px 0;text-align:left}.friend.selected{background:#24152d;border-color:#704080}.friend small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:900}.chatHead{display:flex;align-items:center;gap:10px;padding:11px;border-bottom:1px solid #332a39;background:#17111c}.person{flex:1}.person small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.actions{display:flex;gap:6px}.actions a{display:grid;place-items:center;width:40px;height:40px;background:#24152d;border:1px solid #554361;border-radius:11px;text-decoration:none}.body{min-height:55vh;max-height:65vh;overflow:auto;padding:18px;background:radial-gradient(circle at top,#1b1023,#0b0b0f 50%)}.row{display:flex;margin:8px 0}.mine{justify-content:flex-end}.bubble{max-width:80%;padding:11px 14px;border-radius:18px;background:#202026;line-height:1.5}.mine .bubble{background:linear-gradient(135deg,#6d28d9,#a855f7)}.bubble small{display:block;text-align:right;opacity:.55;font-size:9px;margin-top:4px}.empty{text-align:center;color:#777;margin:70px auto;line-height:1.7}.typing{color:#c4b5fd;font-size:13px}.composer{display:flex;gap:7px;padding:10px;border-top:1px solid #332a39}.composer input{flex:1;min-width:0;background:#09090c;color:#fff;border:1px solid #3b3440;border-radius:22px;padding:0 15px}.composer button{width:42px;height:42px;border-radius:13px;border:1px solid #4b3b55;background:#21152a;color:#fff}.composer .send{border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899)}.friendsToggle,.mobileMenu{display:none}.overlay{display:none}.drawer{display:none}@media(max-width:720px){.page{padding:10px 7px}.searchTop{display:none}.friendsToggle{display:block;background:#21152a;color:#fff;border:1px solid #554361;border-radius:12px;padding:9px}.layout{display:block}.friends{display:none}.mobileMenu{display:block;background:none;border:0;color:#fff;font-size:20px}.overlay{display:flex;position:fixed;inset:0;z-index:100;background:#000b}.drawer{display:block;width:84vw;max-width:340px;height:100%;background:#101014;padding:14px;overflow:auto}.drawerHead{display:flex;justify-content:space-between;padding-bottom:12px}.drawerHead button{background:none;border:0;color:#fff;font-size:20px}.body{min-height:62vh;max-height:68vh}.bubble{max-width:86%}.top p{font-size:13px}.actions a{width:37px;height:37px}}`}</style>
     </>
+  );
+}
+
+export default function Messages() {
+  return (
+    <Suspense fallback={<><Nav /><main className="page"><p>Loading your messages…</p></main></>}>
+      <MessagesContent />
+    </Suspense>
   );
 }
