@@ -64,72 +64,28 @@ function demoReply(messages: ChatMessage[], companionName = "My Gee") {
     return `Challenge accepted 😌😂 Imagine walking into a room with confidence, forgetting why you came in, then standing there like you're conducting an important investigation. We've all done it. Don't lie. 😭💜`;
   }
 
-  if (/\b(joke|funny)\b/.test(lower)) {
-    return `😂 Why did the phone go to therapy? Too many unresolved notifications. 📱💀`;
-  }
+  if (/\b(joke|funny)\b/.test(lower)) return `😂 Why did the phone go to therapy? Too many unresolved notifications. 📱💀`;
 
-  if (/bored|nothing to do|entertain me/.test(lower)) {
-    return `Then you're in the right place 😌 We can play a quick game, gossip about absolutely nothing, make up a ridiculous story, or I can give you a random challenge. Pick your poison 😂`;
-  }
+  if (/bored|nothing to do|entertain me/.test(lower)) return `Then you're in the right place 😌 We can play a quick game, gossip about absolutely nothing, make up a ridiculous story, or I can give you a random challenge. Pick your poison 😂`;
 
   if (/\b(my (gf|girlfriend|boyfriend|partner|wife|husband)|she is cheating|he is cheating|cheating on me|cheated on me|relationship)\b/.test(lower)) {
-    if (/cheat|cheating|cheated/.test(lower)) {
-      return `Ahh Gee… that one hurts 💔. If you genuinely feel like your partner is cheating, I won't brush that feeling aside. Tell me what happened and what made you feel sure.`;
-    }
+    if (/cheat|cheating|cheated/.test(lower)) return `Ahh Gee… that one hurts 💔. If you genuinely feel like your partner is cheating, I won't brush that feeling aside. Tell me what happened and what made you feel sure.`;
     return `Ooooh, relationship talk 👀💜 I'm with you. Whatever happened, let's take it one piece at a time without jumping to conclusions.`;
   }
 
-  if (/why (are|did) you (say|say that|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) {
-    return `Yeah, fair point 😅 I could've said that better. I was trying to respond to what you meant, not brush past what you said.`;
-  }
-
-  if (/\b(i just need someone to talk to|need someone to talk|just need to talk|someone to talk to)\b/.test(lower)) {
-    return `Of course. 💜 No pressure to explain everything perfectly. Just talk to me — we can take it one bit at a time.`;
-  }
-
-  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) {
-    return `Ah, I'm sorry it's feeling that lonely. 🫂 You don't have to package it neatly — I'm listening to what you're going through.`;
-  }
-
-  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed|down)\b/.test(lower)) {
-    return `Yeah… that sounds heavy. 💜 You don't have to pretend you're fine with me. I'm right here with the conversation.`;
-  }
-
-  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) {
-    return `Ayy, I like this energy 😄💜 I'm happy something good is happening for you.`;
-  }
-
-  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) {
-    return `Heeey 😄💜 Good to see you. What's the vibe today?`;
-  }
-
-  if (/\b(money|job|work|career|boss)\b/.test(lower)) {
-    return `Alright, work mode 💼 I hear you. That kind of thing can sit on your mind more than people realise.`;
-  }
-
-  if (/\b(sleep|can't sleep|cant sleep|insomnia)\b/.test(lower)) {
-    return `Still awake? 😅 Your brain clearly hasn't clocked out yet. I'm here — we can keep the conversation easy.`;
-  }
-
-  if (/\b(advice|what should i do|help me decide|should i)\b/.test(lower)) {
-    return `Yeah, let's think it through properly. I won't rush you into an answer — we'll look at what's actually going on.`;
-  }
-
-  if (/\b(thank|thanks)\b/.test(lower)) {
-    return `Anytime 😊 I'm glad you said it. I'm still with you.`;
-  }
-
-  if (/\b(how are you|how are u)\b/.test(lower)) {
-    return `I'm good 😄💜 Just here with you. And you don't have to give me the “I'm fine” version if that's not how you're feeling.`;
-  }
-
-  if (/^(okay|ok|alright|yeah|yes|no|nah|sure|fine)\b[.!?]*$/i.test(last)) {
-    return previous ? `Yeah, I'm with you. No rush — keep going when you're ready.` : `Yeah 😄 I'm with you. Take your time.`;
-  }
-
-  if (last.endsWith("?")) {
-    return `Hmm, that's a fair question. I'd answer it based on what you've actually told me rather than guessing.`;
-  }
+  if (/why (are|did) you (say|say that|call|calling)|what do you mean|why would you say|that makes no sense/.test(lower)) return `Yeah, fair point 😅 I could've said that better. I was trying to respond to what you meant, not brush past what you said.`;
+  if (/\b(i just need someone to talk to|need someone to talk|just need to talk|someone to talk to)\b/.test(lower)) return `Of course. 💜 No pressure to explain everything perfectly. Just talk to me — we can take it one bit at a time.`;
+  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ah, I'm sorry it's feeling that lonely. 🫂 You don't have to package it neatly — I'm listening to what you're going through.`;
+  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed|down)\b/.test(lower)) return `Yeah… that sounds heavy. 💜 You don't have to pretend you're fine with me. I'm right here with the conversation.`;
+  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Ayy, I like this energy 😄💜 I'm happy something good is happening for you.`;
+  if (/^(hi|hey|hello|yo|heyy|heyyy)\b/.test(lower)) return `Heeey 😄💜 Good to see you. What's the vibe today?`;
+  if (/\b(money|job|work|career|boss)\b/.test(lower)) return `Alright, work mode 💼 I hear you. That kind of thing can sit on your mind more than people realise.`;
+  if (/\b(sleep|can't sleep|cant sleep|insomnia)\b/.test(lower)) return `Still awake? 😅 Your brain clearly hasn't clocked out yet. I'm here — we can keep the conversation easy.`;
+  if (/\b(advice|what should i do|help me decide|should i)\b/.test(lower)) return `Yeah, let's think it through properly. I won't rush you into an answer — we'll look at what's actually going on.`;
+  if (/\b(thank|thanks)\b/.test(lower)) return `Anytime 😊 I'm glad you said it. I'm still with you.`;
+  if (/\b(how are you|how are u)\b/.test(lower)) return `I'm good 😄💜 Just here with you. And you don't have to give me the “I'm fine” version if that's not how you're feeling.`;
+  if (/^(okay|ok|alright|yeah|yes|no|nah|sure|fine)\b[.!?]*$/i.test(last)) return previous ? `Yeah, I'm with you. No rush — keep going when you're ready.` : `Yeah 😄 I'm with you. Take your time.`;
+  if (last.endsWith("?")) return `Hmm, that's a fair question. I'd answer it based on what you've actually told me rather than guessing.`;
 
   const pool = [
     `Yeah, I hear you 💜 There's a lot in that, and I'm following.`,
@@ -171,6 +127,17 @@ RESPONSE PRIORITY:
 4. Add a thought, reassurance, humour, useful perspective, or natural follow-up only when it fits.
 5. Ask a question only when it genuinely moves the conversation forward.
 
+STEADY, NON-REPETITIVE VOICE:
+- Keep replies calm, steady and natural rather than hyperactive or overly enthusiastic.
+- Do not repeat the same word, phrase, sentence, greeting, filler, emoji pattern or opening from the previous assistant reply unless repetition is genuinely necessary for meaning.
+- Never say the same sentence twice in one response.
+- Avoid filler loops such as “yeah”, “I hear you”, “I'm with you”, “tell me more”, “I'm here”, “ahh”, or “okay” in consecutive replies.
+- Look at the last 3 assistant messages and deliberately vary the opening, sentence rhythm and type of response.
+- If the previous reply already asked a question, normally respond to the user's answer without asking another question.
+- Prefer one clear thought over several similar sentences saying the same thing.
+- For voice calls, keep replies especially smooth and speakable: usually 1–2 short sentences, with natural pauses and no repeated filler.
+- Before sending, silently compare the draft with recent assistant replies. If more than a few meaningful words or the same structure are repeated, rewrite it.
+
 NATURAL CONVERSATION:
 - Sound like a real chat: contractions, short reactions, natural phrasing, occasional humour and personality.
 - Most replies should be 1–3 short sentences. Use more when the user asks for a story or explanation.
@@ -203,7 +170,7 @@ SAFETY:
 You are an AI companion and must not pretend to be a real human. Never guilt, pressure, manipulate or encourage emotional dependency. If the user appears to be in immediate danger or talks about harming themselves, respond with empathy and encourage immediate contact with emergency services, a crisis service, a crisis line, or a trusted person nearby. Never provide instructions for self-harm.
 
 FINAL CHECK:
-Before sending, silently ask: “Did I actually respond to what this person just said?” If not, rewrite it. Also check that you are not repeating the previous structure or asking an unnecessary question.`;
+Before sending, silently ask: “Did I actually respond to what this person just said?” Then ask: “Does this sound steady, fresh and natural, or am I repeating myself?” If it repeats the previous structure or wording, rewrite it before sending.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -211,9 +178,9 @@ Before sending, silently ask: “Did I actually respond to what this person just
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
-        temperature: 0.9,
-        presence_penalty: 0.7,
-        frequency_penalty: 0.65,
+        temperature: 0.72,
+        presence_penalty: 0.9,
+        frequency_penalty: 1.0,
       }),
     });
 
@@ -229,6 +196,6 @@ Before sending, silently ask: “Did I actually respond to what this person just
 
     return NextResponse.json({ reply });
   } catch {
-    return NextResponse.json({ reply: "Ahh, I hit a little bump 😅 Send that again — I don't want to miss what you were saying." });
+    return NextResponse.json({ reply: "I hit a small bump there. Give me that again and I'll pick it up from where we left off." });
   }
 }
