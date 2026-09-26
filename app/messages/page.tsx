@@ -17,6 +17,9 @@ const people: Person[] = [
   { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
   { id: "demo-elijah", display_name: "Elijah OBONOGWU", city: "London, UK", avatar_letter: "E" },
   { id: "demo-daniel", display_name: "Daniel", city: "London, UK", avatar_letter: "D" },
+  { id: "demo-mia", display_name: "Mia", city: "London, UK", avatar_letter: "M" },
+  { id: "demo-chris", display_name: "Chris", city: "London, UK", avatar_letter: "C" },
+  { id: "demo-grace", display_name: "Grace", city: "London, UK", avatar_letter: "G" },
 ];
 
 function getSavedMessages(id: string): Message[] {
