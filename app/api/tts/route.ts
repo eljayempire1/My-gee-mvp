@@ -17,10 +17,10 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
-        voice: "nova",
+        voice: "onyx",
         input: cleanText.slice(0, 1800),
         response_format: "mp3",
-        instructions: "Warm, natural British English companion voice. Gentle, friendly, conversational, never robotic.",
+        instructions: "Natural, warm masculine Nigerian-English companion voice for Elijah. Friendly, relaxed, conversational, confident, never robotic.",
       }),
     });
 
