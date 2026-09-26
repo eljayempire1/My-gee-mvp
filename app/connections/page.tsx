@@ -21,6 +21,9 @@ const initial: Person[] = [
   { id: "demo-james", name: "James", gender: "Man", status: "Connected", note: "Football • Music • Travel" },
   { id: "demo-elijah", name: "Elijah OBONOGWU", gender: "Man", status: "Connected", note: "Business • Music • Food" },
   { id: "demo-daniel", name: "Daniel", gender: "Man", status: "Request", note: "Fitness • Technology • Travel" },
+  { id: "demo-mia", name: "Mia", gender: "Woman", status: "Request", note: "Music • Wellness • Travel" },
+  { id: "demo-chris", name: "Chris", gender: "Man", status: "Request", note: "Football • Food • Business" },
+  { id: "demo-grace", name: "Grace", gender: "Woman", status: "Request", note: "Books • Art • Technology" },
 ];
 
 export default function Connections() {
