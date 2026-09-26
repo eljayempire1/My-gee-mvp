@@ -34,6 +34,8 @@ type RecognitionLike = {
   onerror: ((event: any) => void) | null;
 };
 
+type VoiceMessage = { role: "user" | "assistant"; content: string };
+
 declare global {
   interface Window {
     SpeechRecognition?: new () => RecognitionLike;
@@ -58,7 +60,7 @@ export default function VoiceClient() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeRef = useRef(false);
   const busyRef = useRef(false);
-  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  const historyRef = useRef<VoiceMessage[]>([]);
   const restartRef = useRef(true);
   const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -133,7 +135,10 @@ export default function VoiceClient() {
   }
 
   async function getReply(text: string) {
-    const messages = [...historyRef.current.slice(-10), { role: "user" as const, content: text }];
+    const messages: VoiceMessage[] = [
+      ...historyRef.current.slice(-10),
+      { role: "user", content: text },
+    ];
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -313,13 +318,8 @@ export default function VoiceClient() {
 
           {connected && <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
             <button onClick={beginListening} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #c084fc", background: "#21122c", color: "#f3e8ff", fontWeight: 800 }}>🎙️ Tap to speak</button>
-            <button onClick={toggleMute} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #3f3f46", background: "#18181b", color: "#e4e4e7", fontWeight: 800 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button>
+            <button onClick={toggleMute} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #4b3b55", background: muted ? "#4c1d1d" : "#121016", color: "#f3e8ff", fontWeight: 800 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button>
           </div>}
-
-          <Link href="/call?type=video&name=My%20Gee" style={{ display: "inline-block", marginTop: 22, padding: "13px 20px", borderRadius: 14, border: "1px solid #c084fc", background: "#15101d", color: "#f3e8ff", textDecoration: "none", fontWeight: 800 }}>🎥 Start video call</Link>
-          <div style={{ display: "flex", justifyContent: "center", gap: 9, marginTop: 24, flexWrap: "wrap" }}>
-            {["🎙️ Live microphone", "🔊 Spoken replies", "🧠 Continuous conversation", "📱 Android friendly"].map((x) => <span key={x} style={{ padding: "8px 11px", borderRadius: 999, border: "1px solid #383044", background: "#121016", color: "#c4b5fd", fontSize: 12 }}>{x}</span>)}
-          </div>
         </div>
       </main>
     </>
