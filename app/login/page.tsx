@@ -16,10 +16,16 @@ export default function LoginPage() {
   useEffect(() => {
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (mounted && data.session) window.location.replace("/connections");
+      if (mounted && data.session) {
+        localStorage.setItem("gee-demo-session", JSON.stringify({ id: data.session.user.id, email: data.session.user.email || "", name: "Eljay" }));
+        window.location.replace("/connections");
+      }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) window.location.replace("/connections");
+      if (session) {
+        localStorage.setItem("gee-demo-session", JSON.stringify({ id: session.user.id, email: session.user.email || "", name: "Eljay" }));
+        window.location.replace("/connections");
+      }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -31,15 +37,13 @@ export default function LoginPage() {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${APP_URL}/login` } });
       if (result.error) throw result.error;
-      if (mode === "signin") {
-        if (result.data.session) {
-          window.location.replace("/connections");
-          return;
-        }
-        setMessage("Sign-in succeeded, but no active session was returned. Please try again. 💜");
-      } else if (result.data.session) {
+      if (result.data.session) {
+        localStorage.setItem("gee-demo-session", JSON.stringify({ id: result.data.session.user.id, email: result.data.session.user.email || email, name: "Eljay" }));
         window.location.replace("/connections");
         return;
+      }
+      if (mode === "signin") {
+        setMessage("Sign-in succeeded, but no active session was returned. Please try again. 💜");
       } else {
         setMessage("Account created. Check your email to confirm your address, then sign in. 💜");
       }
