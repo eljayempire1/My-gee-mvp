@@ -9,3 +9,7 @@ Configured for Vercel production deployment.
 ## Chat update
 
 Updated the connected-friends demo chat so legacy generic replies are removed and conversations use warmer, more varied responses.
+
+## Production verification
+
+Connection, messaging, and voice-client fixes are included in the latest main-branch deployment trigger.
