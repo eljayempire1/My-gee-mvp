@@ -8,7 +8,13 @@ type Person={id:string;display_name:string|null;city:string|null;bio:string|null
 const avatarMap:Record<string,string>={Emma:"https://randomuser.me/api/portraits/women/47.jpg",Sarah:"https://randomuser.me/api/portraits/women/32.jpg",Olivia:"https://randomuser.me/api/portraits/women/44.jpg",Sophia:"https://randomuser.me/api/portraits/women/49.jpg",David:"https://randomuser.me/api/portraits/men/12.jpg",James:"https://randomuser.me/api/portraits/men/11.jpg",Elijah:"https://randomuser.me/api/portraits/men/13.jpg",Daniel:"https://randomuser.me/api/portraits/men/15.jpg",Mia:"https://randomuser.me/api/portraits/women/45.jpg",Chris:"https://randomuser.me/api/portraits/men/14.jpg",Grace:"https://randomuser.me/api/portraits/women/48.jpg"};
 function initialsAvatar(name:string){const initials=(name||"G").split(/\s+/).map(x=>x[0]).join("").slice(0,2).toUpperCase();return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#4c1d95"/><stop offset="1" stop-color="#c026d3"/></linearGradient></defs><rect width="160" height="160" rx="80" fill="#120b18"/><circle cx="80" cy="58" r="30" fill="url(#g)"/><path d="M30 145c7-35 27-52 50-52s43 17 50 52" fill="url(#g)"/><text x="80" y="154" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="700">${initials}</text></svg>`)}`}
 function fallbackAvatar(p:Person){const first=(p.display_name||"Gee").split(" ")[0];return avatarMap[first]||initialsAvatar(p.display_name||"Gee")}
-function avatarFor(p:Person){if(p.avatar_url)return p.avatar_url;return fallbackAvatar(p)}
+function avatarFor(p:Person){
+  const name=(p.display_name||"").toLowerCase();
+  if(name.startsWith("elijah")) return "/elijah-obonogwu-avatar.svg";
+  // Keep demo/profile cards instant and avoid depending on a slow third-party image host.
+  if(p.avatar_url && !/^https?:\/\/randomuser\.me\//i.test(p.avatar_url)) return p.avatar_url;
+  return initialsAvatar(p.display_name||"Gee");
+}
 const demoPeople:Person[]=[
 {id:"demo-emma",display_name:"Emma",city:"London, UK",bio:"Music, travel and finding good food. Always happy to meet genuine people.",interests:["Music","Travel","Food"]},
 {id:"demo-sarah",display_name:"Sarah",city:"London, UK",bio:"Creative, curious and always planning the next adventure.",interests:["Travel","Art","Business"]},
