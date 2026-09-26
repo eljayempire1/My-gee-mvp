@@ -151,7 +151,7 @@ export default function VoiceClient() {
     if (!response.ok) throw new Error("GEE could not answer right now.");
     const data = await response.json();
     const answer = String(data.reply || "I'm here with you. Keep talking to me.").trim();
-    historyRef.current = [...messages, { role: "assistant", content: answer }].slice(-12);
+    historyRef.current = [...messages, { role: "assistant" as const, content: answer }].slice(-12);
     return answer;
   }
 
@@ -317,8 +317,8 @@ export default function VoiceClient() {
           <p style={{ color: "#a1a1aa", marginTop: 14, fontWeight: 700 }}>{connected ? (listening ? "Listening — speak now" : speaking ? "Gee is speaking…" : "Call is live") : "Tap to call Gee"}</p>
 
           {connected && <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={beginListening} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #c084fc", background: "#21122c", color: "#f3e8ff", fontWeight: 800 }}>🎙️ Tap to speak</button>
-            <button onClick={toggleMute} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #4b3b55", background: muted ? "#4c1d1d" : "#121016", color: "#f3e8ff", fontWeight: 800 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button>
+            <button onClick={beginListening} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #c084fc", background: "#21122c", color: "#f3e8ff", fontWeight: 800 }}>🎙️ Speak</button>
+            <button onClick={toggleMute} style={{ padding: "12px 18px", borderRadius: 14, border: "1px solid #4b3b55", background: muted ? "#3b1d2f" : "#21152a", color: "white", fontWeight: 800 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button>
           </div>}
         </div>
       </main>
