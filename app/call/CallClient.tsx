@@ -2,235 +2,241 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type ChatMessage = { role: "user" | "assistant"; content: string };
+type RecognitionLike = {
+  lang: string;
+  continuous?: boolean;
+  interimResults?: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: any) => void) | null;
+};
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => RecognitionLike;
+    webkitSpeechRecognition?: new () => RecognitionLike;
+  }
+}
 
 export default function CallClient() {
   const [type, setType] = useState<"voice" | "video">("voice");
   const [name, setName] = useState("Gee friend");
-  const [active, setActive] = useState(false);
+  const [status, setStatus] = useState("Ready");
+  const [seconds, setSeconds] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [active, setActive] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [typed, setTyped] = useState("");
-  const [seconds, setSeconds] = useState(0);
 
-  const activeRef = useRef(false);
-  const mutedRef = useRef(false);
-  const recognitionRef = useRef<any>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const historyRef = useRef<Msg[]>([]);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  const isElijah = name.toLowerCase().startsWith("elijah");
-
-  function stopRecognition() {
-    try { recognitionRef.current?.stop(); } catch {}
-    recognitionRef.current = null;
-    setListening(false);
-  }
-
-  function stopCall(navigate = true) {
-    activeRef.current = false;
-    mutedRef.current = false;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    stopRecognition();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    try { window.speechSynthesis?.cancel(); } catch {}
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
-    setActive(false);
-    setSpeaking(false);
-    setStatus("Call ended");
-    if (navigate) window.location.href = "/messages";
-  }
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const recognitionRef = useRef<RecognitionLike | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const activeRef = useRef(false);
+  const busyRef = useRef(false);
+  const restartRef = useRef(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyRef = useRef<ChatMessage[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setType(params.get("type") === "video" ? "video" : "voice");
+    const nextType = params.get("type") === "video" ? "video" : "voice";
+    setType(nextType);
     setName(params.get("name") || "Gee friend");
+    setCamera(nextType === "video");
     return () => stopCall(false);
   }, []);
 
   useEffect(() => {
     if (!active) return;
-    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    const id = window.setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(id);
   }, [active]);
+
+  async function ensureMedia() {
+    if (streamRef.current) return true;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Your browser does not support camera/microphone access. Please use Chrome on Android.");
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === "video" });
+      streamRef.current = stream;
+      if (videoRef.current && type === "video") {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      return true;
+    } catch {
+      setError(type === "video" ? "Please allow camera and microphone access, then start the call again." : "Please allow microphone access, then start the call again.");
+      return false;
+    }
+  }
+
+  async function browserSpeak(text: string) {
+    if (!window.speechSynthesis) return false;
+    return new Promise<boolean>((resolve) => {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = name.toLowerCase().startsWith("elijah") ? "en-NG" : "en-GB";
+        utterance.rate = 0.98;
+        utterance.pitch = 1.02;
+        utterance.onend = () => resolve(true);
+        utterance.onerror = () => resolve(false);
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        resolve(false);
+      }
+    });
+  }
 
   async function speak(text: string) {
     setSpeaking(true);
     try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      const response = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
       if (response.ok) {
-        const url = URL.createObjectURL(await response.blob());
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
         const audio = audioRef.current || new Audio();
         audioRef.current = audio;
         audio.src = url;
         audio.volume = 1;
         await audio.play();
-        await new Promise<void>((resolve) => {
-          audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-        });
+        await new Promise<void>((resolve) => { audio.onended = () => resolve(); audio.onerror = () => resolve(); });
         URL.revokeObjectURL(url);
         setSpeaking(false);
-        return;
+        return true;
       }
     } catch {}
-
-    try {
-      if (window.speechSynthesis) {
-        await new Promise<void>((resolve) => {
-          window.speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = isElijah ? "en-NG" : "en-GB";
-          u.rate = 0.98;
-          u.onend = () => resolve();
-          u.onerror = () => resolve();
-          window.speechSynthesis.speak(u);
-        });
-      }
-    } catch {}
+    const played = await browserSpeak(text);
     setSpeaking(false);
+    return played;
   }
 
   async function answer(text: string) {
-    const clean = text.trim();
-    if (!clean || !activeRef.current) return;
-    stopRecognition();
+    if (busyRef.current || !activeRef.current) return;
+    busyRef.current = true;
+    restartRef.current = false;
     setStatus("Thinking…");
     setError("");
-
-    const messages: Msg[] = [...historyRef.current.slice(-10), { role: "user", content: clean }];
     try {
+      const messages: ChatMessage[] = [
+        ...historyRef.current.slice(-10),
+        { role: "user", content: text.trim() },
+      ];
+      const elijah = name.toLowerCase().startsWith("elijah");
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companionName: isElijah ? "Elijah" : name,
-          languageStyle: isElijah ? "pidgin" : "english",
-          messages,
-        }),
+        body: JSON.stringify({ companionName: elijah ? "Elijah" : name, languageStyle: elijah ? "pidgin" : "english", messages }),
       });
-      const data = response.ok ? await response.json() : {};
-      const next = String(data?.reply || (isElijah ? "I dey here with you 💜. Talk to me, my guy." : "I'm here with you. Keep talking to me.")).trim();
-      historyRef.current = [...messages, { role: "assistant", content: next }].slice(-12);
-      setReply(next);
-      await speak(next);
-    } catch {
-      const next = isElijah ? "I dey here with you 💜. Network dey misbehave small, but I no go disappear." : "I'm here with you. The connection is having a little trouble right now.";
-      setReply(next);
-      await speak(next);
-    }
-
-    if (activeRef.current && !mutedRef.current) {
-      setStatus("Connected");
-      timerRef.current = setTimeout(beginListening, 300);
+      if (!response.ok) throw new Error("GEE could not connect right now.");
+      const data = await response.json();
+      const nextReply = String(data.reply || (elijah ? "I dey here with you 💜. Keep talking to me, my guy." : "I'm here with you. Keep talking to me.")).trim();
+      const nextHistory: ChatMessage[] = [
+        ...messages,
+        { role: "assistant", content: nextReply },
+      ];
+      historyRef.current = nextHistory.slice(-12);
+      setReply(nextReply);
+      await speak(nextReply);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "GEE could not answer right now.");
+    } finally {
+      busyRef.current = false;
+      if (activeRef.current) {
+        setStatus("Connected");
+        restartRef.current = true;
+        timerRef.current = setTimeout(beginListening, 250);
+      }
     }
   }
 
   function beginListening() {
-    if (!activeRef.current || mutedRef.current) return;
-    const w = window as any;
-    const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!activeRef.current || busyRef.current || muted) return;
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      setStatus("Connected — type if needed");
-      setError("Live voice input is not available in this browser. You can type below, or use Chrome on Android.");
+      setError("Voice input is not supported in this browser. Use Chrome on Android.");
       return;
     }
-
-    stopRecognition();
     try {
+      recognitionRef.current?.stop();
       const recognition = new Recognition();
       recognitionRef.current = recognition;
-      recognition.lang = isElijah ? "en-NG" : "en-GB";
+      recognition.lang = name.toLowerCase().startsWith("elijah") ? "en-NG" : "en-GB";
       recognition.continuous = false;
       recognition.interimResults = false;
       let gotResult = false;
+      restartRef.current = true;
       setListening(true);
       setStatus("Listening…");
-
-      recognition.onresult = (event: any) => {
+      recognition.onresult = async (event) => {
         gotResult = true;
-        const heard = String(event?.results?.[0]?.[0]?.transcript || "").trim();
+        const text = String(event.results?.[0]?.[0]?.transcript || "").trim();
         setListening(false);
-        if (heard) {
-          setTranscript(heard);
-          void answer(heard);
-        }
+        if (!text) return;
+        setTranscript(text);
+        await answer(text);
       };
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event) => {
         setListening(false);
         if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-          setStatus("Microphone blocked");
-          setError("Allow microphone in Chrome: lock icon → Permissions → Microphone → Allow, then tap Speak.");
+          restartRef.current = false;
+          setError("Microphone permission is blocked. Tap the lock icon in Chrome → Microphone → Allow.");
         } else if (event?.error !== "aborted") {
-          setStatus("Connected");
-          setError("I couldn't hear you. Tap Speak and try again.");
+          setError("I couldn't hear you. Tap the microphone button and try again.");
         }
       };
       recognition.onend = () => {
         setListening(false);
-        if (!gotResult && activeRef.current && !mutedRef.current) timerRef.current = setTimeout(beginListening, 500);
+        if (!gotResult && restartRef.current && activeRef.current && !busyRef.current && !muted) timerRef.current = setTimeout(beginListening, 350);
       };
       recognition.start();
     } catch {
       setListening(false);
-      setError("Tap Speak and try again.");
+      setError("Tap the microphone button and speak again.");
     }
   }
 
   async function startCall() {
-    if (activeRef.current) return beginListening();
+    if (active) return beginListening();
     setError("");
-    historyRef.current = [];
-    setReply("");
-    setTranscript("");
-
+    setStatus(type === "video" ? "Starting video call…" : "Connecting voice…");
     if (type === "video") {
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error();
-        streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      } catch {
-        setError("Allow camera and microphone in Chrome, then start the video call again.");
-        return;
-      }
+      const ok = await ensureMedia();
+      if (!ok) return;
     }
-
     activeRef.current = true;
-    mutedRef.current = false;
+    restartRef.current = true;
+    historyRef.current = [];
     setActive(true);
     setSeconds(0);
     setMuted(false);
-    setStatus("Connected");
-
-    const greeting = isElijah
-      ? "How far, my guy? 😄💜 I dey here with you. You fit talk to me normally — wetin dey your mind?"
-      : `Hi, I'm ${name}. I'm here with you. You can talk to me naturally. What's on your mind?`;
+    if (type === "video") setCamera(true);
+    const elijah = name.toLowerCase().startsWith("elijah");
+    const greeting = elijah ? "How far, my guy? 😄💜 I dey here with you. You fit talk to me normally — wetin dey your mind?" : `Hi, I'm ${name}. I'm here with you. You can talk to me naturally. What's on your mind?`;
     setReply(greeting);
-    await speak(greeting);
-    if (activeRef.current) beginListening();
+    const played = await speak(greeting);
+    if (!played) setError("I have a reply ready, but your phone could not play the voice. Turn up media volume and try again.");
+    setStatus("Connected");
+    beginListening();
   }
 
   function toggleMute() {
-    const next = !mutedRef.current;
-    mutedRef.current = next;
+    const next = !muted;
     setMuted(next);
-    if (streamRef.current) streamRef.current.getAudioTracks().forEach((track) => { track.enabled = !next; });
+    streamRef.current?.getAudioTracks().forEach((track) => (track.enabled = !next));
     if (next) {
-      stopRecognition();
+      recognitionRef.current?.stop();
+      setListening(false);
       setStatus("Microphone muted");
     } else {
       setStatus("Connected");
@@ -238,12 +244,30 @@ export default function CallClient() {
     }
   }
 
-  function sendTyped() {
-    const value = typed.trim();
-    if (!value || !activeRef.current) return;
-    setTyped("");
-    setTranscript(value);
-    void answer(value);
+  function toggleCamera() {
+    if (type !== "video") return;
+    const next = !camera;
+    streamRef.current?.getVideoTracks().forEach((track) => (track.enabled = next));
+    setCamera(next);
+  }
+
+  function stopCall(navigate = true) {
+    activeRef.current = false;
+    restartRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    window.speechSynthesis?.cancel();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    busyRef.current = false;
+    setActive(false);
+    setListening(false);
+    setSpeaking(false);
+    setStatus("Call ended");
+    if (navigate) window.location.href = "/messages";
   }
 
   const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -258,20 +282,32 @@ export default function CallClient() {
           <div style={{ width: 25 }} />
         </header>
 
-        <div style={{ minHeight: 520, padding: 20, display: "grid", placeItems: "center", background: "linear-gradient(180deg,#160d1d,#08080b)" }}>
-          <div style={{ width: 145, height: 145, borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7c3aed,#ec4899)", fontSize: 56, boxShadow: speaking ? "0 0 90px #22c55e88" : "0 0 70px #a855f766" }}>💜</div>
-          <div style={{ fontSize: 24, fontWeight: 900, marginTop: -40 }}>{name}</div>
-          <div style={{ color: "#a1a1aa", textAlign: "center", minHeight: 22 }}>{error || (listening ? "🎙️ Listening… speak now" : speaking ? "🔊 Gee is speaking…" : active ? "Connected — talk naturally" : "Tap Start to begin")}</div>
-          {transcript && <div style={{ color: "#c4b5fd", fontSize: 14 }}>You: “{transcript}”</div>}
-          {reply && <div style={{ width: "100%", maxWidth: 500, padding: "14px 16px", border: "1px solid #3b3042", borderRadius: 18, background: "#0d0b11", fontSize: 16, lineHeight: 1.45, textAlign: "center" }}>{reply}</div>}
+        <div style={{ minHeight: 520, padding: 20, position: "relative", background: "linear-gradient(180deg,#160d1d,#08080b)" }}>
+          {type === "video" && <>
+            <video ref={videoRef} muted playsInline autoPlay style={{ width: "100%", height: 300, objectFit: "cover", borderRadius: 22, background: "#050506", border: "1px solid #4b3b55", transform: "scaleX(-1)" }} />
+            <div style={{ position: "absolute", top: 34, left: 34, padding: "7px 10px", borderRadius: 10, background: "#0009", fontSize: 12 }}>📷 Your camera</div>
+          </>}
+          <div style={{ display: "grid", placeItems: "center", paddingTop: type === "video" ? 22 : 80 }}>
+            <div style={{ width: 145, height: 145, borderRadius: "50%", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#7c3aed,#ec4899)", fontSize: 56, fontWeight: 900, boxShadow: speaking ? "0 0 90px #22c55e88" : "0 0 70px #a855f766" }}>💜</div>
+            <div style={{ fontSize: 24, fontWeight: 900, marginTop: 18 }}>{name}</div>
+            <div style={{ color: "#a1a1aa", marginTop: 6, textAlign: "center", minHeight: 22 }}>{error || (listening ? "🎙️ Listening… speak now" : speaking ? "🔊 Gee is speaking…" : active ? "Connected — talk naturally" : "Tap Start to begin")}</div>
+            {transcript && <div style={{ marginTop: 12, color: "#c4b5fd", fontSize: 14 }}>You: “{transcript}”</div>}
+            {reply && <div style={{ marginTop: 14, padding: "14px 16px", border: "1px solid #3b3042", borderRadius: 18, background: "#0d0b11", fontSize: 16, lineHeight: 1.45, textAlign: "center" }}>{reply}</div>}
+          </div>
         </div>
-
-        {active && <div style={{ display: "flex", gap: 8, padding: "10px 20px 0" }}><input value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendTyped(); }} placeholder={isElijah ? "Type if you can't speak…" : "Type if needed…"} style={{ flex: 1, minWidth: 0, background: "#09090c", color: "#fff", border: "1px solid #3b3042", borderRadius: 22, padding: "11px 15px", outline: "none" }} /><button onClick={sendTyped} disabled={!typed.trim()} style={{ border: 0, borderRadius: 22, padding: "0 17px", background: "linear-gradient(135deg,#7c3aed,#ec4899)", color: "#fff", fontWeight: 800 }}>Send</button></div>}
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: 20, borderTop: "1px solid #302938", flexWrap: "wrap" }}>
-          {!active ? <button onClick={startCall} style={{ border: 0, borderRadius: 18, padding: "14px 24px", background: "linear-gradient(135deg,#7c3aed,#ec4899)", color: "white", fontWeight: 900, fontSize: 16 }}>📞 Start call</button> : <><button onClick={toggleMute} style={{ border: 0, borderRadius: 18, padding: "14px 20px", background: muted ? "#ef4444" : "#2a2130", color: "white", fontWeight: 900 }}>{muted ? "🔇 Unmute" : "🎙️ Mute"}</button><button onClick={() => stopCall()} style={{ border: 0, borderRadius: 18, padding: "14px 20px", background: "#ef4444", color: "white", fontWeight: 900 }}>End call</button></>}
+          {!active && <button onClick={startCall} style={controlPrimary}>{type === "video" ? "🎥 Start video call" : "🔊 Start voice"}</button>}
+          {active && <button onClick={beginListening} style={controlPrimary}>🎙️ Tap to speak</button>}
+          {active && <button onClick={toggleMute} style={control}>{muted ? "🔇" : "🎙️"}</button>}
+          {type === "video" && active && <button onClick={toggleCamera} style={control}>{camera ? "📷" : "🚫"}</button>}
+          {active && <button onClick={() => stopCall(true)} style={{ ...control, background: "#b91c1c", borderColor: "#ef4444" }}>☎</button>}
         </div>
+        <div style={{ padding: "0 20px 20px", textAlign: "center", fontSize: 11, color: "#71717a" }}>My Gee uses your microphone for the live conversation. Video mode activates your phone camera and keeps the AI companion voice active.</div>
       </section>
     </main>
   );
 }
+
+const control: React.CSSProperties = { width: 56, height: 56, borderRadius: "50%", border: "1px solid #554361", background: "#241a2b", color: "white", fontSize: 21, cursor: "pointer" };
+const controlPrimary: React.CSSProperties = { padding: "13px 22px", borderRadius: 999, border: "1px solid #c084fc", background: "linear-gradient(135deg,#7c3aed,#c026d3)", color: "white", fontWeight: 800, fontSize: 16, cursor: "pointer" };
