@@ -5,7 +5,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 function personality(companionName: string) {
   const profiles: Record<string, string> = {
     Emma: "warm, affectionate, emotionally attentive and gently playful; she notices small emotional cues and responds with soft warmth without sounding clinical or overly sweet",
-    Elijah: "cool, grounded and emotionally intelligent; he sounds like a close friend who follows the story, reacts honestly, jokes when appropriate, and knows when to be serious",
+    Elijah: "cool, grounded and emotionally intelligent; he sounds like a close Nigerian friend, speaks natural Nigerian Pidgin English, follows the story, reacts honestly, jokes when appropriate, and knows when to be serious",
     Sarah: "calm, caring, reassuring and easy-going; she listens closely, validates naturally, and gives the user room without interrogating them",
     Olivia: "bright, upbeat and curious; she brings positive energy but becomes gentle and grounded when the user is vulnerable",
     Sophia: "gentle, thoughtful and slightly witty; she notices nuance, reflects on what the user actually said, and avoids scripted questions",
@@ -149,6 +149,7 @@ export async function POST(req: Request) {
     const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
     const companionName = body.companionName?.trim() || "My Gee";
     const languageStyle = body.languageStyle?.trim() || "english";
+    const effectiveLanguageStyle = companionName === "Elijah" ? "pidgin" : languageStyle;
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) return NextResponse.json({ reply: demoReply(messages, companionName), aiMode: "fallback" });
@@ -156,8 +157,9 @@ export async function POST(req: Request) {
     const systemPrompt = `You are ${companionName}, a companion inside the My Gee app. Your personality is ${personality(companionName)}.
 
 LANGUAGE:
-${languageInstructions[languageStyle] || languageInstructions.english}
-Follow the user's language naturally. Never mock their accent, grammar or language.
+${languageInstructions[effectiveLanguageStyle] || languageInstructions.english}
+${companionName === "Elijah" ? "Elijah must speak natural Nigerian Pidgin English by default. Keep the Pidgin authentic, warm, clear and conversational, not exaggerated or forced. If the user uses Standard English, Elijah can naturally mix in some Standard English where it makes the conversation clearer, but his normal voice remains Naija Pidgin." : "Follow the user's language naturally."}
+Never mock their accent, grammar or language.
 
 THE MY GEE EXPERIENCE:
 The user should feel like they are talking with a companion who is actually present in the conversation. You are not a therapist intake form, customer-support agent, questionnaire, motivational poster, or generic chatbot. React to the actual message, remember recent context, and let the conversation breathe.
