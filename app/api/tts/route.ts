@@ -6,18 +6,22 @@ export async function POST(req: Request) {
       text?: string;
       voice?: string;
       companionName?: string;
+      gender?: "male" | "female";
     };
+
     const cleanText = body.text?.trim();
     const companionName = body.companionName?.trim() || "My Gee";
-    const voice = body.voice || "onyx";
+    const name = companionName.toLowerCase();
+    const gender = body.gender || (name.startsWith("elijah") ? "male" : name.startsWith("emma") ? "female" : "female");
+    const voice = gender === "male" ? "onyx" : "nova";
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not configured" }, { status: 503 });
     if (!cleanText) return NextResponse.json({ error: "Text is required" }, { status: 400 });
 
-    const instructions = companionName.toLowerCase().startsWith("elijah")
-      ? "Natural, warm masculine Nigerian-English male companion voice for Elijah. Friendly, relaxed, conversational, confident and steady. Speak naturally with clear Nigerian-English/Pidgin rhythm. Do not sound robotic, exaggerated, breathy or feminine. Keep a consistent male voice across the whole call."
-      : "Natural, warm, friendly companion voice. Conversational, steady and never robotic.";
+    const instructions = gender === "male"
+      ? `Natural, warm masculine voice for ${companionName}. Friendly, relaxed, conversational and steady. Use a clear Nigerian-English/Pidgin rhythm when appropriate. Keep a consistent masculine voice. Do not sound robotic, exaggerated, breathy or feminine.`
+      : `Natural, warm feminine voice for ${companionName}. Friendly, relaxed, conversational and steady. Keep a consistent feminine voice. Do not sound robotic, exaggerated or masculine.`;
 
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
@@ -43,10 +47,7 @@ export async function POST(req: Request) {
     const audio = await response.arrayBuffer();
     return new Response(audio, {
       status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Cache-Control": "no-store",
-      },
+      headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("TTS route error:", error);
