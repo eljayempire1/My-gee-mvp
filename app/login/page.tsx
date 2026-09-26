@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Nav from "../components/Nav";
 import { supabase } from "../../lib/supabase";
 
 const APP_URL = "https://my-gee-mvp.vercel.app";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -18,13 +16,13 @@ export default function LoginPage() {
   useEffect(() => {
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (mounted && data.session) router.replace("/connections");
+      if (mounted && data.session) window.location.replace("/connections");
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) router.replace("/connections");
+      if (session) window.location.replace("/connections");
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
-  }, [router]);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setLoading(true); setMessage("");
@@ -34,10 +32,14 @@ export default function LoginPage() {
         : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${APP_URL}/login` } });
       if (result.error) throw result.error;
       if (mode === "signin") {
-        if (result.data.session) router.replace("/connections");
-        else setMessage("Sign-in succeeded, but no active session was returned. Please try again. 💜");
+        if (result.data.session) {
+          window.location.replace("/connections");
+          return;
+        }
+        setMessage("Sign-in succeeded, but no active session was returned. Please try again. 💜");
       } else if (result.data.session) {
-        router.replace("/connections");
+        window.location.replace("/connections");
+        return;
       } else {
         setMessage("Account created. Check your email to confirm your address, then sign in. 💜");
       }
@@ -48,7 +50,7 @@ export default function LoginPage() {
 
   function continueDemo() {
     localStorage.setItem("gee-demo-session", JSON.stringify({ id: "demo-user", email: email || "guest@mygee.app", name: "Eljay" }));
-    router.replace("/connections");
+    window.location.replace("/connections");
   }
 
   return <><Nav /><main style={{minHeight:"calc(100vh - 55px)",display:"grid",placeItems:"center",padding:24,fontFamily:"Arial,sans-serif"}}>
