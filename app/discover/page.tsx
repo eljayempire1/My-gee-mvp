@@ -12,7 +12,10 @@ const demoPeople:Person[]=[
  {id:"demo-david",display_name:"David",city:"London, UK",bio:"Tech, business and fitness. Looking for positive conversations.",interests:["Technology","Business","Fitness"]},
  {id:"demo-james",display_name:"James",city:"London, UK",bio:"Football, music and exploring London. Always happy to meet genuine people.",interests:["Football","Music","Travel"]},
  {id:"demo-elijah",display_name:"Elijah OBONOGWU",city:"London, UK",bio:"Entrepreneurial, relaxed and into great food, music and good vibes.",interests:["Business","Music","Food"]},
- {id:"demo-daniel",display_name:"Daniel",city:"London, UK",bio:"Fitness, technology and weekend adventures. Here for genuine connections.",interests:["Fitness","Technology","Travel"]}
+ {id:"demo-daniel",display_name:"Daniel",city:"London, UK",bio:"Fitness, technology and weekend adventures. Here for genuine connections.",interests:["Fitness","Technology","Travel"]},
+ {id:"demo-mia",display_name:"Mia",city:"London, UK",bio:"Kind, social and into music, wellness and discovering new places.",interests:["Music","Wellness","Travel"]},
+ {id:"demo-chris",display_name:"Chris",city:"London, UK",bio:"Easygoing, curious and always up for football, food and good conversation.",interests:["Football","Food","Business"]},
+ {id:"demo-grace",display_name:"Grace",city:"London, UK",bio:"Positive energy, books and creative projects. Here for genuine friendships.",interests:["Books","Art","Technology"]}
 ];
 
 function normalizePeople(rows:Person[]){
@@ -26,7 +29,6 @@ export default function Discover(){
    let rows:Person[]=[];
    try{const {data}=await supabase.rpc("discover_people",{limit_count:20});if(Array.isArray(data))rows=data;}catch{}
    const normalized=normalizePeople(rows);
-   // Always keep the complete demo directory visible. Real Supabase members are added alongside it.
    const byId=new Map<string,Person>();
    [...demoPeople,...normalized].forEach(p=>byId.set(p.id,p));
    setPeople(Array.from(byId.values()));
