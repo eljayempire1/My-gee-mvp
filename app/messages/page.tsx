@@ -1,144 +1,72 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Nav from "../components/Nav";
 import { supabase } from "../../lib/supabase";
 
-type Person = { id: string; display_name: string; city: string; avatar_letter: string };
-type Message = { id: string; connection_id: string; sender_id: string; body: string; created_at: string };
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type Person={id:string;display_name:string;city:string;avatar_letter:string};
+type Message={id:string;connection_id:string;sender_id:string;body:string;created_at:string};
+type ChatMessage={role:"user"|"assistant";content:string};
 
-const people: Person[] = [
-  { id: "demo-emma", display_name: "Emma", city: "London, UK", avatar_letter: "E" },
-  { id: "demo-sarah", display_name: "Sarah", city: "London, UK", avatar_letter: "S" },
-  { id: "demo-olivia", display_name: "Olivia", city: "London, UK", avatar_letter: "O" },
-  { id: "demo-sophia", display_name: "Sophia", city: "London, UK", avatar_letter: "S" },
-  { id: "demo-david", display_name: "David", city: "London, UK", avatar_letter: "D" },
-  { id: "demo-james", display_name: "James", city: "London, UK", avatar_letter: "J" },
-  { id: "demo-elijah", display_name: "Elijah", city: "London, UK", avatar_letter: "E" },
+const people:Person[]=[
+ {id:"demo-emma",display_name:"Emma",city:"London, UK",avatar_letter:"E"},
+ {id:"demo-sarah",display_name:"Sarah",city:"London, UK",avatar_letter:"S"},
+ {id:"demo-olivia",display_name:"Olivia",city:"London, UK",avatar_letter:"O"},
+ {id:"demo-sophia",display_name:"Sophia",city:"London, UK",avatar_letter:"S"},
+ {id:"demo-david",display_name:"David",city:"London, UK",avatar_letter:"D"},
+ {id:"demo-james",display_name:"James",city:"London, UK",avatar_letter:"J"},
+ {id:"demo-elijah",display_name:"Elijah OBONOGWU",city:"London, UK",avatar_letter:"E"},
+ {id:"demo-daniel",display_name:"Daniel",city:"London, UK",avatar_letter:"D"},
 ];
 
-function isLegacyGenericReply(body: string) {
-  return /that sounds interesting\s*😊?\s*tell me more\.\s*i'?m listening\.?/i.test(body) || /tell me more\.\s*i'?m listening\.?/i.test(body);
-}
+function legacy(body:string){return /tell me more\.\s*i'?m listening\.?/i.test(body)||/that sounds interesting/i.test(body)}
+function fallback(name:string,text:string){const t=text.toLowerCase();if(/lonely|alone|nobody|no one|isolated/.test(t))return `Ahh ${name} ❤️ I'm sorry you're feeling lonely. Come, talk to me for a bit — what's been making you feel this way? 🫂`;if(/sad|upset|hurt|cry|bad day|not okay|stressed|overwhelmed/.test(t))return `Aww ❤️ I'm sorry you're having a rough time. You don't have to brush it off with me — what happened? 🫂`;if(/happy|excited|great|amazing|good news|good day/.test(t))return `Yesss 😄❤️ I love hearing that energy from you. Come on, tell me what happened!`;return `I'm listening, and I want to understand you properly. ❤️ What part of that is weighing on you most?`}
 
-function loadDemoMessages(id: string): Message[] {
-  try {
-    const raw = localStorage.getItem(`gee-v2-messages-${id}`);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    const cleaned = parsed.filter((m) => !(m?.sender_id === id && isLegacyGenericReply(String(m?.body || ""))));
-    if (cleaned.length !== parsed.length) localStorage.setItem(`gee-v2-messages-${id}`, JSON.stringify(cleaned));
-    return cleaned;
-  } catch { return []; }
-}
+function demoIds(){try{const raw=JSON.parse(localStorage.getItem("gee-demo-connections")||"[]");return Array.isArray(raw)?raw.filter((x):x is string=>typeof x==="string"):[]}catch{return[]}}
+function savedMessages(id:string){try{const raw=JSON.parse(localStorage.getItem(`gee-v2-messages-${id}`)||"[]");return Array.isArray(raw)?raw.filter((m:any)=>!legacy(String(m?.body||""))):[]}catch{return[]}}
 
-function compassionateFallback(name: string, userText: string) {
-  const lower = userText.toLowerCase();
-  if (/\b(lonely|alone|nobody|no one|isolated)\b/.test(lower)) return `Ahh ${name} ❤️ I'm sorry you're feeling lonely. Come, talk to me for a bit — what's been making you feel this way? 🫂`;
-  if (/\b(sad|upset|hurt|cry|crying|bad day|not okay|stressed|overwhelmed)\b/.test(lower)) return `Aww ${name === "My Gee" ? "my gee" : ""} ❤️ I'm sorry you're having a rough time. You don't have to brush it off with me — what happened? 🫂`;
-  if (/\b(happy|excited|great|amazing|good news|good day)\b/.test(lower)) return `Yesss 😄❤️ I love hearing that energy from you. Come on, tell me what happened!`;
-  return `I'm listening, and I want to understand you properly. ❤️ What part of that is weighing on you most?`;
-}
+export default function Messages(){
+ const params=useSearchParams();
+ const [userId,setUserId]=useState("");
+ const [connections,setConnections]=useState<Person[]>(people);
+ const [active,setActive]=useState(0);
+ const [messages,setMessages]=useState<Message[]>([]);
+ const [text,setText]=useState("");
+ const [loading,setLoading]=useState(true);
+ const [notice,setNotice]=useState("");
+ const [search,setSearch]=useState("");
+ const [replying,setReplying]=useState(false);
+ const [mobileFriends,setMobileFriends]=useState(false);
+ const person=connections[active];
+ const visible=useMemo(()=>messages.filter(m=>m.connection_id===person?.id),[messages,person]);
+ const filtered=useMemo(()=>connections.filter(p=>p.display_name.toLowerCase().includes(search.toLowerCase())),[connections,search]);
 
-function cleanAIReply(reply: string, name: string, userText: string) {
-  return isLegacyGenericReply(reply) ? compassionateFallback(name, userText) : reply;
-}
+ useEffect(()=>{let mounted=true;(async()=>{
+   const {data:{user}}=await supabase.auth.getUser(); if(!mounted)return; if(user)setUserId(user.id);
+   const local=demoIds();
+   let merged=people.filter(p=>local.includes(p.id));
+   const {data}=await supabase.rpc("accepted_connections");
+   if(data?.length){const real=(data as any[]).map(p=>({id:p.id,display_name:p.display_name||"Friend",city:p.city||"London, UK",avatar_letter:(p.display_name||"G").slice(0,1).toUpperCase()}));merged=[...real,...merged];}
+   const unique=new Map<string,Person>(); merged.forEach(p=>unique.set(p.id,p));
+   // Keep the complete demo directory available so every connection made in Discover is reachable here.
+   people.forEach(p=>unique.set(p.id,p));
+   if(mounted){setConnections([...unique.values()]);setLoading(false);}
+ })();return()=>{mounted=false}},[]);
 
-export default function Messages() {
-  const [userId, setUserId] = useState("");
-  const [connections, setConnections] = useState<Person[]>(people);
-  const [active, setActive] = useState(0);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState("");
-  const [search, setSearch] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [replying, setReplying] = useState(false);
-  const [mobileFriends, setMobileFriends] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+ useEffect(()=>{const wanted=params.get("name");if(!wanted)return;const i=connections.findIndex(p=>p.display_name.toLowerCase()===wanted.toLowerCase());if(i>=0)setActive(i)},[params,connections]);
+ useEffect(()=>{if(!person)return; if(person.id.startsWith("demo-")){setMessages(savedMessages(person.id));return;}let mounted=true;(async()=>{const {data}=await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id",person.id).order("created_at",{ascending:true});if(mounted)setMessages((data||[]) as Message[])})();return()=>{mounted=false}},[person?.id]);
 
-  const person = connections[active];
-  const visible = useMemo(() => messages.filter((m) => m.connection_id === person?.id), [messages, person]);
-  const filtered = useMemo(() => connections.filter((p) => p.display_name.toLowerCase().includes(search.toLowerCase())), [connections, search]);
-
-  useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth <= 720);
-    update(); window.addEventListener("resize", update); return () => window.removeEventListener("resize", update);
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!mounted) return;
-      if (user) setUserId(user.id); else setNotice("Demo mode — sign in when you want private connections.");
-      const { data } = await supabase.rpc("accepted_connections");
-      if (data?.length) {
-        const loaded = (data as any[]).map((p) => ({ id: p.id, display_name: p.display_name || "Friend", city: p.city || "London, UK", avatar_letter: (p.display_name || "G").slice(0, 1).toUpperCase() }));
-        const hasElijah = loaded.some((p) => p.id === "demo-elijah" || p.display_name.trim().toLowerCase() === "elijah");
-        setConnections(hasElijah ? loaded : [...loaded, people.find((p) => p.id === "demo-elijah")!]);
-      }
-      if (mounted) setLoading(false);
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!person) return;
-    if (person.id.startsWith("demo-")) { setMessages(loadDemoMessages(person.id)); return; }
-    let mounted = true;
-    (async () => { const { data } = await supabase.from("connection_messages").select("id,connection_id,sender_id,body,created_at").eq("connection_id", person.id).order("created_at", { ascending: true }); if (mounted) setMessages((data || []) as Message[]); })();
-    return () => { mounted = false; };
-  }, [person?.id]);
-
-  async function getAIReply(name: string, history: Message[]) {
-    const chatHistory: ChatMessage[] = history.map((m) => ({ role: m.sender_id === userId || m.sender_id === "guest" ? "user" : "assistant", content: m.body }));
-    const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companionName: name, messages: chatHistory }) });
-    if (!response.ok) throw new Error("AI request failed");
-    const data = await response.json(); if (!data?.reply) throw new Error("No AI reply"); return data.reply as string;
-  }
-
-  async function send(e: React.FormEvent) {
-    e.preventDefault(); const body = text.trim(); if (!body || !person || replying) return; setText("");
-    if (person.id.startsWith("demo-")) {
-      const mine: Message = { id: `u-${Date.now()}`, connection_id: person.id, sender_id: userId || "guest", body, created_at: new Date().toISOString() };
-      const next = [...messages, mine]; setMessages(next); localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(next)); setReplying(true);
-      try {
-        const rawReply = await getAIReply(person.display_name, next);
-        const reply = cleanAIReply(rawReply, person.display_name, body);
-        setMessages((prev) => { const updated = [...prev, { id: `g-${Date.now()}`, connection_id: person.id, sender_id: person.id, body: reply, created_at: new Date().toISOString() }]; localStorage.setItem(`gee-v2-messages-${person.id}`, JSON.stringify(updated)); return updated; });
-      } catch { setNotice(`${person.display_name} is having trouble connecting. Try again in a moment.`); } finally { setReplying(false); }
-      return;
-    }
-    if (!userId) return; const { error } = await supabase.from("connection_messages").insert({ connection_id: person.id, sender_id: userId, body }); if (error) setNotice("Message could not be sent.");
-  }
-
-  function pick(id: string) { const index = connections.findIndex((p) => p.id === id); if (index >= 0) { setActive(index); setMobileFriends(false); } }
-
-  if (loading) return <><Nav /><main className="gee-page"><p className="muted">Loading GEE…</p></main></>;
-
-  return <><Nav /><main className="gee-page"><div className="gee-wrap">
-    <div className="gee-top"><div><div className="eyebrow">MESSAGES</div><h1>Stay connected. <span>💜</span></h1></div><div className="top-actions"><button className="friends-toggle" onClick={() => setMobileFriends(true)}>☰ Friends</button><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" /></div></div>
-    {notice && <div className="notice">{notice}</div>}
-    <div className="gee-layout">
-      {!isMobile && <aside className="friends-panel"><div className="side-title">CONNECTED <span>• {connections.length}</span></div><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search friends" />{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} className={`friend ${p.id === person?.id ? "selected" : ""}`}><div className="avatar">{p.avatar_letter}</div><div><b>{p.display_name}</b><small>● Online</small></div></button>)}</aside>}
-
-      {isMobile && mobileFriends && <div className="mobile-overlay" onClick={() => setMobileFriends(false)}><div className="mobile-drawer" onClick={(e) => e.stopPropagation()}><div className="drawer-head"><b>Friends</b><button onClick={() => setMobileFriends(false)}>✕</button></div><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search friends" />{filtered.map((p) => <button key={p.id} onClick={() => pick(p.id)} className={`friend ${p.id === person?.id ? "selected" : ""}`}><div className="avatar">{p.avatar_letter}</div><div><b>{p.display_name}</b><small>● Online</small></div></button>)}</div></div>}
-
-      {person && <section className="gee-chat">
-        <header className="chat-head"><button className="mobile-menu" onClick={() => setMobileFriends(true)}>☰</button><div className="person"><div className="avatar">{person.avatar_letter}</div><div><b>{person.display_name}</b><small className="online">● Online • {person.city}</small></div></div><div className="chat-actions"><a href={`/call?type=voice&name=${encodeURIComponent(person.display_name)}`}>📞</a><a href={`/call?type=video&name=${encodeURIComponent(person.display_name)}`}>🎥</a></div></header>
-        <div className="chat-body">
-          {!visible.length && <div className="empty">💜<br /><b>You’re connected with {person.display_name}.</b><br />Say hello and start a conversation.</div>}
-          {visible.map((m) => <div key={m.id} className={`row ${m.sender_id === userId || m.sender_id === "guest" ? "mine" : "theirs"}`}><div className="bubble">{m.body}<div className="time">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div></div>)}
-          {replying && <div className="typing">{person.display_name} is thinking… 💜</div>}
-        </div>
-        <form onSubmit={send} className="composer"><button type="button" onClick={() => setText((v) => v + " 💜")}>😊</button><button type="button" onClick={() => { setRecording((v) => !v); setNotice(recording ? "Voice message stopped." : "🎤 Voice message mode is ready."); }}>{recording ? "⏹️" : "🎤"}</button><input value={text} onChange={(e) => setText(e.target.value)} placeholder={`Message ${person.display_name}...`} /><button className="send" type="submit" disabled={!text.trim() || replying}>➤</button></form>
-      </section>}
-    </div>
-  </div></main>
-  <style jsx global>{`*{box-sizing:border-box}.gee-page{min-height:calc(100vh - 55px);padding:16px 12px 28px;background:linear-gradient(180deg,#07070a,#0d0812);color:#fff;font-family:Arial,sans-serif}.gee-wrap{max-width:1120px;margin:auto}.gee-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 2px 14px}.gee-top h1{font-size:clamp(27px,6vw,42px);margin:5px 0}.eyebrow{color:#e879f9;font-weight:900;letter-spacing:2px;font-size:11px}.top-actions{display:flex;gap:8px}.top-actions input,.friends-panel>input,.mobile-drawer>input{background:#121217;border:1px solid #332b39;border-radius:12px;padding:10px;color:#fff;outline:none}.top-actions input{width:130px}.friends-toggle{display:none;background:#21152a;border:1px solid #554361;color:#fff;border-radius:12px;padding:9px 12px}.notice{padding:9px 12px;margin-bottom:10px;background:#17101c;color:#f0abfc;border-radius:10px;font-size:12px}.gee-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px}.friends-panel{background:#101014;border:1px solid #302938;border-radius:20px;padding:12px;min-width:0}.side-title{color:#a1a1aa;font-size:12px;font-weight:800;letter-spacing:1px;margin:2px 2px 10px}.side-title span{font-weight:500}.friends-panel>input{width:100%;margin-bottom:8px}.friend{width:100%;display:flex;align-items:center;gap:10px;padding:9px 8px;border:1px solid transparent;border-radius:14px;color:#fff;text-align:left;background:#111115;margin:2px 0}.friend.selected{background:#21142d;border-color:#6d3b86}.friend small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:900}.gee-chat{background:#0b0b0f;border:1px solid #342b3b;border-radius:20px;overflow:hidden;min-width:0;box-shadow:0 18px 50px rgba(0,0,0,.25)}.chat-head{min-height:68px;padding:10px 13px;background:#151019;border-bottom:1px solid #302938;display:flex;justify-content:space-between;align-items:center;gap:10px}.person{display:flex;align-items:center;gap:10px;min-width:0}.person>div:last-child{min-width:0}.online{display:block;color:#22c55e;font-size:11px;margin-top:3px}.chat-actions{display:flex;flex-shrink:0}.chat-actions a{display:grid;place-items:center;width:40px;height:40px;margin-left:5px;background:#241a2b;border:1px solid #554361;border-radius:11px;color:#fff;text-decoration:none}.mobile-menu{display:none;background:none;border:0;color:#ddd;font-size:20px}.chat-body{min-height:52vh;max-height:62vh;overflow-y:auto;padding:18px clamp(12px,3vw,28px);background:radial-gradient(circle at top,#1a1022,#0b0b0f 48%)}.row{display:flex;margin:8px 0}.row.mine{justify-content:flex-end}.row.theirs{justify-content:flex-start}.bubble{padding:11px 14px;border-radius:18px;max-width:min(72%,620px);color:#f4f4f5;line-height:1.5;overflow-wrap:anywhere;box-shadow:0 5px 18px rgba(0,0,0,.16);background:#202026}.mine .bubble{background:linear-gradient(135deg,#6d28d9,#a855f7)}.time{font-size:10px;opacity:.6;text-align:right;margin-top:5px}.typing{color:#c4b5fd;font-size:13px;padding:8px 5px}.empty{text-align:center;margin:70px auto;max-width:300px;color:#71717a;line-height:1.7}.composer{display:flex;gap:7px;align-items:center;padding:10px;border-top:1px solid #302938;background:#111115}.composer button{width:42px;height:42px;flex:0 0 42px;background:#21152a;border:1px solid #4b3b55;border-radius:13px;color:#fff;font-size:18px}.composer input{flex:1;min-width:0;height:44px;background:#09090c;color:#fff;border:1px solid #3a3440;border-radius:22px;padding:0 15px;outline:none}.composer .send{border:0;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899)}.composer .send:disabled{opacity:.45}.mobile-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex}.mobile-drawer{width:min(84vw,340px);height:100%;background:#101014;border-right:1px solid #3b3042;padding:14px;overflow-y:auto}.drawer-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:10px;border-bottom:1px solid #302938}.drawer-head button{background:none;border:0;color:#ddd;font-size:20px}.mobile-drawer>input{width:100%;margin-bottom:8px}
-@media(max-width:720px){.gee-page{padding:8px 7px 20px}.gee-top{padding:4px 3px 10px}.gee-top h1{font-size:25px}.top-actions input{display:none}.friends-toggle{display:block}.gee-layout{display:block}.friends-panel{display:none}.mobile-menu{display:block}.chat-head{padding:8px 9px}.chat-actions a{width:36px;height:36px}.chat-body{min-height:58vh;max-height:65vh;padding:14px 10px}.bubble{max-width:84%;padding:10px 12px}.composer{padding:8px;gap:5px}.composer button{width:39px;height:39px;flex-basis:39px}.composer input{height:42px}.avatar{width:38px;height:38px;flex-basis:38px}.person b{font-size:14px}.online{font-size:10px}}
-`}</style></>;
+ async function aiReply(name:string,history:Message[]){const chat:ChatMessage[]=history.map(m=>({role:m.sender_id===userId||m.sender_id==="guest"?"user":"assistant",content:m.body}));const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({companionName:name,messages:chat})});if(!r.ok)throw new Error("AI request failed");const d=await r.json();if(!d?.reply)throw new Error("No reply");return d.reply as string}
+ async function send(e:React.FormEvent){e.preventDefault();const body=text.trim();if(!body||!person||replying)return;setText("");const mine:Message={id:`u-${Date.now()}`,connection_id:person.id,sender_id:userId||"guest",body,created_at:new Date().toISOString()};const next=[...messages,mine];setMessages(next);
+   if(person.id.startsWith("demo-")){localStorage.setItem(`gee-v2-messages-${person.id}`,JSON.stringify(next));setReplying(true);try{const raw=await aiReply(person.display_name,next);const reply=legacy(raw)?fallback(person.display_name,body):raw;setMessages(prev=>{const updated=[...prev,{id:`g-${Date.now()}`,connection_id:person.id,sender_id:person.id,body:reply,created_at:new Date().toISOString()}];localStorage.setItem(`gee-v2-messages-${person.id}`,JSON.stringify(updated));return updated})}catch{setNotice(`${person.display_name} is having trouble connecting. Try again in a moment.`)}finally{setReplying(false)}return}
+   if(!userId){setNotice("Please sign in to send private messages.");return}const {error}=await supabase.from("connection_messages").insert({connection_id:person.id,sender_id:userId,body});if(error)setNotice("Message could not be sent.")
+ }
+ if(loading)return <><Nav/><main className="page"><p>Loading your connections…</p></main>;
+ return <><Nav/><main className="page"><div className="wrap"><header className="top"><div><div className="eyebrow">MESSAGES</div><h1>Stay connected. 💜</h1><p>All your connections are here — choose someone to chat or call.</p></div><button className="friendsToggle" onClick={()=>setMobileFriends(true)}>☰ Friends</button><input className="searchTop" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search"/></header>
+ {notice&&<div className="notice">{notice}</div>}
+ <div className="layout"><aside className="friends"><b>CONNECTED • {filtered.length}</b><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search friends"/>{filtered.map((p,i)=><button key={p.id} onClick={()=>{setActive(connections.findIndex(x=>x.id===p.id));setMobileFriends(false)}} className={p.id===person?.id?"friend selected":"friend"}><span className="avatar">{p.avatar_letter}</span><span><strong>{p.display_name}</strong><small>● Online</small></span></button>)}</aside>
+ {mobileFriends&&<div className="overlay" onClick={()=>setMobileFriends(false)}><div className="drawer" onClick={e=>e.stopPropagation()}><div className="drawerHead"><b>Friends</b><button onClick={()=>setMobileFriends(false)}>✕</button></div>{filtered.map(p=><button key={p.id} onClick={()=>{setActive(connections.findIndex(x=>x.id===p.id));setMobileFriends(false)}} className="friend"><span className="avatar">{p.avatar_letter}</span><span><strong>{p.display_name}</strong><small>● Online</small></span></button>)}</div></div>}
+ <section className="chat"><header className="chatHead"><button className="mobileMenu" onClick={()=>setMobileFriends(true)}>☰</button><span className="avatar">{person?.avatar_letter||"G"}</span><div className="person"><strong>{person?.display_name||"Friend"}</strong><small>● Online • {person?.city||"UK"}</small></div><div className="actions"><a href={`/call?type=voice&name=${encodeURIComponent(person?.display_name||"")}`}>📞</a><a href={`/call?type=video&name=${encodeURIComponent(person?.display_name||"")}`}>🎥</a></div></header><div className="body">{!visible.length&&<div className="empty">💜<br/><b>You’re connected with {person?.display_name}.</b><br/>Say hello and start a conversation.</div>}{visible.map(m=><div key={m.id} className={m.sender_id===userId||m.sender_id==="guest"?"row mine":"row"}><div className="bubble">{m.body}<small>{new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</small></div></div>)}{replying&&<div className="typing">{person?.display_name} is thinking… 💜</div>}</div><form className="composer" onSubmit={send}><button type="button" onClick={()=>setText(v=>v+" 💜")}>😊</button><input value={text} onChange={e=>setText(e.target.value)} placeholder={`Message ${person?.display_name||"friend"}...`}/><button className="send" disabled={!text.trim()||replying}>➤</button></form></section></div></div></main>
+ <style jsx global>{`*{box-sizing:border-box}.page{min-height:calc(100vh - 55px);padding:18px 10px 30px;background:linear-gradient(180deg,#07070a,#100914);color:#fff;font-family:Arial,sans-serif}.wrap{max-width:1120px;margin:auto}.top{display:flex;align-items:end;gap:10px;justify-content:space-between;flex-wrap:wrap}.eyebrow{color:#e879f9;font-weight:900;letter-spacing:2px;font-size:11px}.top h1{font-size:clamp(28px,6vw,42px);margin:5px 0}.top p{color:#a1a1aa;margin:0}.searchTop,.friends input{background:#111116;color:#fff;border:1px solid #39303f;border-radius:12px;padding:10px}.searchTop{width:130px}.layout{display:grid;grid-template-columns:260px 1fr;gap:14px;margin-top:18px}.friends,.chat{background:#0f0f13;border:1px solid #332a39;border-radius:20px;overflow:hidden}.friends{padding:12px}.friends>b{font-size:12px;color:#a1a1aa}.friends input{width:100%;margin:10px 0}.friend{width:100%;display:flex;align-items:center;gap:10px;border:1px solid transparent;background:#121216;color:#fff;border-radius:14px;padding:9px;margin:3px 0;text-align:left}.friend.selected{background:#24152d;border-color:#704080}.friend small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:900}.chatHead{display:flex;align-items:center;gap:10px;padding:11px;border-bottom:1px solid #332a39;background:#17111c}.person{flex:1}.person small{display:block;color:#22c55e;font-size:11px;margin-top:3px}.actions{display:flex;gap:6px}.actions a{display:grid;place-items:center;width:40px;height:40px;background:#24152d;border:1px solid #554361;border-radius:11px;text-decoration:none}.body{min-height:55vh;max-height:65vh;overflow:auto;padding:18px;background:radial-gradient(circle at top,#1b1023,#0b0b0f 50%)}.row{display:flex;margin:8px 0}.mine{justify-content:flex-end}.bubble{max-width:80%;padding:11px 14px;border-radius:18px;background:#202026;line-height:1.5}.mine .bubble{background:linear-gradient(135deg,#6d28d9,#a855f7)}.bubble small{display:block;text-align:right;opacity:.55;font-size:9px;margin-top:4px}.empty{text-align:center;color:#777;margin:70px auto;line-height:1.7}.typing{color:#c4b5fd;font-size:13px}.composer{display:flex;gap:7px;padding:10px;border-top:1px solid #332a39}.composer input{flex:1;min-width:0;background:#09090c;color:#fff;border:1px solid #3b3440;border-radius:22px;padding:0 15px}.composer button{width:42px;height:42px;border-radius:13px;border:1px solid #4b3b55;background:#21152a;color:#fff}.composer .send{border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899)}.friendsToggle,.mobileMenu{display:none}.notice{padding:10px;margin-top:10px;background:#21152a;color:#f0abfc;border-radius:10px}.overlay{display:none}.drawer{display:none}@media(max-width:720px){.page{padding:10px 7px}.searchTop{display:none}.friendsToggle{display:block;background:#21152a;color:#fff;border:1px solid #554361;border-radius:12px;padding:9px}.layout{display:block}.friends{display:none}.mobileMenu{display:block;background:none;border:0;color:#fff;font-size:20px}.overlay{display:flex;position:fixed;inset:0;z-index:100;background:#000b}.drawer{display:block;width:84vw;max-width:340px;height:100%;background:#101014;padding:14px;overflow:auto}.drawerHead{display:flex;justify-content:space-between;padding-bottom:12px}.drawerHead button{background:none;border:0;color:#fff;font-size:20px}.body{min-height:62vh;max-height:68vh}.bubble{max-width:86%}.top p{font-size:13px}.actions a{width:37px;height:37px}}`}</style></>;
 }
